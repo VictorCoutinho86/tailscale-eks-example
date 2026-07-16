@@ -7,7 +7,7 @@ export AWS_REGION="${aws_region}"
 export CLUSTER_NAME="${cluster_name}"
 export CLUSTER_VERSION="${cluster_version}"
 
-dnf install -y curl tar gzip unzip jq awscli
+dnf install -y curl-minimal tar gzip unzip jq awscli
 
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
