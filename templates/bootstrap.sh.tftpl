@@ -6,6 +6,8 @@ exec > >(tee /var/log/eks-bootstrap.log | logger -t eks-bootstrap -s 2>/dev/cons
 export AWS_REGION="${aws_region}"
 export CLUSTER_NAME="${cluster_name}"
 export CLUSTER_VERSION="${cluster_version}"
+install -d -m 0700 /var/lib/eks-bootstrap
+export KUBECONFIG="/var/lib/eks-bootstrap/kubeconfig"
 
 dnf install -y curl-minimal tar gzip unzip jq awscli
 
@@ -15,7 +17,7 @@ KUBECTL_VERSION="$(curl -fsSL "https://dl.k8s.io/release/stable-${cluster_versio
 curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
 chmod +x /usr/local/bin/kubectl
 
-aws eks update-kubeconfig --region "${aws_region}" --name "${cluster_name}"
+aws eks update-kubeconfig --region "${aws_region}" --name "${cluster_name}" --kubeconfig "$KUBECONFIG"
 
 helm repo add --force-update tailscale https://pkgs.tailscale.com/helmcharts
 helm repo add --force-update argo https://argoproj.github.io/argo-helm
