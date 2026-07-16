@@ -57,13 +57,13 @@ variable "default_node_count" {
 }
 
 variable "enable_bootstrap_instance" {
-  description = "Create the temporary EC2 bootstrap instance that installs in-cluster components through the private EKS endpoint."
+  description = "Create the EC2 bootstrap/subnet router instance that installs in-cluster components and advertises the VPC subnet route."
   type        = bool
   default     = true
 }
 
 variable "bootstrap_instance_type" {
-  description = "Instance type for the temporary bootstrap EC2 instance."
+  description = "Instance type for the bootstrap EC2 subnet router instance."
   type        = string
   default     = "t3.micro"
 }

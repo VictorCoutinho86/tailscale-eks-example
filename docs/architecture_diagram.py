@@ -46,7 +46,7 @@ with Diagram(
         s3 = S3("S3")
 
         with Cluster("Public subnets"):
-            bootstrap = EC2("Bootstrap EC2\ntemporary installer")
+            bootstrap = EC2("Bootstrap EC2\nsubnet router + installer")
             default_nodes = EKS("Default node group\n4x t4g.small\nOn-Demand")
             karpenter_nodes = EKS("Default Karpenter nodes\nt2/t3/t4g\nSpot or On-Demand")
             spark_nodes = EKS("Spark NodePool\nr family + NVMe\nSpot or On-Demand")
@@ -54,7 +54,7 @@ with Diagram(
         eks_api = EKS("EKS private\nAPI endpoint")
 
         with Cluster("Cluster system"):
-            tailscale_operator = Deploy("Tailscale Operator\nAPI server proxy")
+            tailscale_operator = Deploy("Tailscale Operator\nTailscale Services")
             argocd = Deploy("Argo CD\nGitOps reconciler")
             karpenter = Deploy("Karpenter\ncontroller")
             storage_class = StorageClass("default gp3\nStorageClass")
@@ -68,7 +68,7 @@ with Diagram(
         kubecost_service = Service("Kubecost\nTailscale Service")
         argocd_service = Service("Argo CD\nTailscale Service")
 
-    user >> Edge(label="tailscale configure kubeconfig") >> tailscale_operator >> eks_api
+    user >> Edge(label="AWS EKS kubeconfig\nover subnet route") >> bootstrap
     user >> Edge(label="tailnet HTTPS") >> argocd_service >> argocd
     user >> Edge(label="tailnet HTTP") >> airflow_service >> airflow
     user >> Edge(label="tailnet HTTP") >> kubecost_service >> kubecost

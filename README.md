@@ -106,7 +106,7 @@ The Airflow values disable Helm hooks for `createUserJob` and `migrateDatabaseJo
 
 ## Access
 
-The EKS API endpoint is private. Local `kubectl` access uses the Tailscale subnet router running on the bootstrap EC2 instance, not the Tailscale Kubernetes API server proxy.
+The EKS API endpoint is private. Local `kubectl` access uses the Tailscale subnet router running on the bootstrap EC2 instance.
 
 After `terraform apply`, approve the advertised VPC route in the Tailscale Admin Console:
 
