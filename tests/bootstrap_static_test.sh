@@ -29,6 +29,26 @@ if ! grep -q 'https://tailscale.com/install.sh' "$bootstrap"; then
   exit 1
 fi
 
+if ! grep -q 'systemctl enable --now tailscaled' "$bootstrap"; then
+  printf 'expected bootstrap to enable and start tailscaled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'tailscale up' "$bootstrap"; then
+  printf 'expected bootstrap to join the tailnet with tailscale up\n' >&2
+  exit 1
+fi
+
+if ! grep -q -- '--auth-key="\$TAILSCALE_SUBNET_ROUTER_AUTH_KEY"' "$bootstrap"; then
+  printf 'expected tailscale up to use the subnet router auth key\n' >&2
+  exit 1
+fi
+
+if ! grep -q -- '--hostname="\$TAILSCALE_SUBNET_ROUTER_HOSTNAME"' "$bootstrap"; then
+  printf 'expected tailscale up to set the subnet router hostname\n' >&2
+  exit 1
+fi
+
 if ! grep -q -- '--advertise-routes="\$VPC_CIDR"' "$bootstrap"; then
   printf 'expected bootstrap to advertise the VPC CIDR as a Tailscale subnet route\n' >&2
   exit 1
