@@ -17,6 +17,11 @@ dnf install -y curl-minimal tar gzip unzip jq awscli
 curl -fsSL https://tailscale.com/install.sh | sh
 systemctl enable --now tailscaled
 
+cat >/etc/sysctl.d/99-tailscale.conf <<'EOF'
+net.ipv4.ip_forward = 1
+EOF
+sysctl -p /etc/sysctl.d/99-tailscale.conf
+
 tailscale up \
   --auth-key="$TAILSCALE_SUBNET_ROUTER_AUTH_KEY" \
   --hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME" \

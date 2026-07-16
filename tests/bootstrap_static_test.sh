@@ -34,6 +34,16 @@ if ! grep -q 'systemctl enable --now tailscaled' "$bootstrap"; then
   exit 1
 fi
 
+if ! grep -q 'net.ipv4.ip_forward = 1' "$bootstrap"; then
+  printf 'expected bootstrap to enable IPv4 forwarding for subnet routing\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'sysctl -p /etc/sysctl.d/99-tailscale.conf' "$bootstrap"; then
+  printf 'expected bootstrap to apply Tailscale sysctl forwarding configuration\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'tailscale up' "$bootstrap"; then
   printf 'expected bootstrap to join the tailnet with tailscale up\n' >&2
   exit 1
