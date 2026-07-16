@@ -6,6 +6,7 @@ module "karpenter" {
   namespace    = "karpenter"
 
   create_instance_profile = true
+  enable_inline_policy    = true
   enable_spot_termination = true
 
   node_iam_role_additional_policies = {
