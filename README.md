@@ -17,7 +17,7 @@ uv run --script docs/architecture_diagram.py
 - Terraform `>= 1.5.7`.
 - AWS credentials with access to create VPC, EKS, IAM, EC2, SQS, EventBridge, and related resources.
 - Tailscale OAuth client ID and secret for the Kubernetes Operator.
-- Tailscale CLI on the operator machine for kubeconfig setup.
+- Tailscale CLI on the operator machine for subnet router validation.
 - `kubectl` for post-bootstrap validation.
 - A Git remote containing this repository, because Argo CD syncs `gitops/root` from `argocd_repo_url`.
 
@@ -26,8 +26,9 @@ uv run --script docs/architecture_diagram.py
 Create a local `terraform.tfvars` file. Do not commit this file; it contains Tailscale OAuth credentials and `.gitignore` excludes `*.tfvars`.
 
 ```hcl
-tailscale_oauth_client_id     = "tskey-client-example"
-tailscale_oauth_client_secret = "tskey-secret-example"
+tailscale_oauth_client_id        = "tskey-client-example"
+tailscale_oauth_client_secret    = "tskey-secret-example"
+tailscale_subnet_router_auth_key = "tskey-auth-example"
 
 # Required after this repository is published.
 argocd_repo_url = "https://github.com/VictorCoutinho86/tailscale-eks-example.git"
@@ -105,12 +106,29 @@ The Airflow values disable Helm hooks for `createUserJob` and `migrateDatabaseJo
 
 ## Access
 
-After the bootstrap instance installs the Tailscale Operator and the operator is online in the tailnet, configure kubeconfig from a tailnet device:
+The EKS API endpoint is private. Local `kubectl` access uses the Tailscale subnet router running on the bootstrap EC2 instance, not the Tailscale Kubernetes API server proxy.
+
+After `terraform apply`, approve the advertised VPC route in the Tailscale Admin Console:
 
 ```bash
-tailscale configure kubeconfig $(terraform output -raw tailscale_operator_hostname)
+terraform output -raw tailscale_subnet_router_hostname
+terraform output -raw tailscale_subnet_route
+```
+
+For the default VPC, approve `10.0.0.0/16` on `tailscale-eks-example-subnet-router`.
+
+Then configure kubeconfig with AWS EKS:
+
+```bash
+aws eks update-kubeconfig \
+  --profile victor \
+  --region $(terraform output -raw aws_region) \
+  --name $(terraform output -raw cluster_name)
+
 kubectl get nodes
 ```
+
+If the private EKS endpoint hostname does not resolve from your local machine, configure Tailscale Split DNS to forward the relevant AWS private DNS name to the VPC resolver. For the default `10.0.0.0/16` VPC, the resolver is usually `10.0.0.2`.
 
 Get UI hostnames:
 
@@ -140,13 +158,11 @@ AWS permissions and Kubernetes permissions are separate.
 - Spark Operator does not receive broad AWS data-plane permissions by default.
 - ECR image pull permissions normally belong to the node/Kubelet path, not application ServiceAccounts.
 
-## Bootstrap Cleanup
+## Bootstrap Instance and Subnet Router
 
-The bootstrap EC2 instance is temporary. After Tailscale access and Argo CD sync are validated, remove it with:
+The bootstrap EC2 instance is persistent in this design because it also acts as the Tailscale subnet router for private EKS API access.
 
-```bash
-terraform apply -var='enable_bootstrap_instance=false'
-```
+Do not set `enable_bootstrap_instance=false` unless another subnet router advertises the VPC CIDR. Removing the bootstrap instance removes the subnet route and breaks local `kubectl` access to the private endpoint.
 
 ## Defaults
 
@@ -175,7 +191,7 @@ EKS control plane:                 about US$73/month
 4x public IPv4 addresses:           about US$15/month
 4x gp3 root EBS volumes:            about US$6/month
 S3 Gateway VPC endpoint:            US$0/hour endpoint charge
-Temporary bootstrap t3.micro:        only while enable_bootstrap_instance=true
+Bootstrap subnet router t3.micro:    while enable_bootstrap_instance=true
 Karpenter nodes:                     variable by workload and Spot/On-Demand mix
 Argo CD/Airflow/Kubecost/Spark:      variable compute and persistent volume cost
 
@@ -186,7 +202,7 @@ Public IPv4 cost is accepted for now. If it becomes material, move nodes away fr
 
 ## Notes
 
-- The EKS public API endpoint is disabled; access is through the Tailscale API server proxy.
+- The EKS public API endpoint is disabled; access is through the Tailscale subnet route to the private endpoint.
 - The bootstrap EC2 instance exists because the private endpoint needs an in-VPC installer for initial Tailscale and Argo CD setup.
 - Terraform variables are marked sensitive, but Tailscale credentials can still land in Terraform state through rendered bootstrap user data. Protect local and remote state.
 - Karpenter AWS resources are created by `terraform-aws-modules/eks/aws//modules/karpenter`.
@@ -235,7 +251,9 @@ bash -n templates/bootstrap.sh.tftpl
 Runtime validation after apply:
 
 ```bash
-tailscale configure kubeconfig $(terraform output -raw tailscale_operator_hostname)
+tailscale status
+tailscale ping $(terraform output -raw tailscale_subnet_router_hostname)
+aws eks update-kubeconfig --profile victor --region $(terraform output -raw aws_region) --name $(terraform output -raw cluster_name)
 kubectl get nodes
 kubectl -n tailscale get pods
 kubectl -n argocd get pods,applications

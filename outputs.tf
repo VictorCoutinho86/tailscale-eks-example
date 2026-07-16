@@ -24,13 +24,23 @@ output "public_subnet_ids" {
 }
 
 output "tailscale_operator_hostname" {
-  description = "Tailscale Operator hostname for kubeconfig configuration."
+  description = "Tailscale Operator hostname used for in-cluster Tailscale Services."
   value       = local.tailscale_operator_hostname
 }
 
-output "tailscale_kubeconfig_command" {
-  description = "Command to configure kubeconfig through Tailscale after the operator is ready."
-  value       = "tailscale configure kubeconfig ${local.tailscale_operator_hostname}"
+output "tailscale_subnet_router_hostname" {
+  description = "Tailscale subnet router hostname that advertises the VPC CIDR."
+  value       = local.tailscale_subnet_router_hostname
+}
+
+output "tailscale_subnet_route" {
+  description = "VPC CIDR advertised by the Tailscale subnet router. Approve this route in the Tailscale admin console."
+  value       = var.vpc_cidr
+}
+
+output "aws_kubeconfig_command" {
+  description = "Command to configure kubeconfig for the private EKS endpoint after the Tailscale subnet route is approved."
+  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
 }
 
 output "argocd_tailscale_hostname" {
