@@ -1,0 +1,19 @@
+global:
+  clusterName: tailscale-eks-example
+  awsRegion: us-east-1
+  repoURL: https://github.com/VictorCoutinho86/tailscale-eks-example.git
+  targetRevision: master
+  argocdTailscaleHostname: argocd
+  airflowTailscaleHostname: airflow
+  kubecostTailscaleHostname: kubecost
+  sparkWorkloadNamespace: spark-jobs
+
+versions:
+  karpenter: 1.13.0
+  airflow: 1.22.0
+  kubecost: 2.8.7
+  sparkOperator: 2.5.1
+
+karpenter:
+  interruptionQueueName: tailscale-eks-example
+  nodeRoleName: tailscale-eks-example-karpenter
