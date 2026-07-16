@@ -6,16 +6,6 @@ module "aws_ebs_csi_pod_identity" {
 
   attach_aws_ebs_csi_policy = true
 
-  associations = {
-    ebs_csi = {
-      cluster_name    = local.name
-      namespace       = "kube-system"
-      service_account = "ebs-csi-controller-sa"
-    }
-  }
-
-  depends_on = [module.eks]
-
   tags = local.tags
 }
 
