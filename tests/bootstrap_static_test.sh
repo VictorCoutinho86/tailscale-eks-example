@@ -49,6 +49,11 @@ if ! grep -q 'tailscale up' "$bootstrap"; then
   exit 1
 fi
 
+if grep -q '^export TAILSCALE_SUBNET_ROUTER_AUTH_KEY=' "$bootstrap"; then
+  printf 'expected bootstrap to keep the subnet router auth key out of child process environments\n' >&2
+  exit 1
+fi
+
 if ! grep -q -- '--auth-key="\$TAILSCALE_SUBNET_ROUTER_AUTH_KEY"' "$bootstrap"; then
   printf 'expected tailscale up to use the subnet router auth key\n' >&2
   exit 1
