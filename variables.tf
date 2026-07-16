@@ -80,6 +80,12 @@ variable "tailscale_oauth_client_secret" {
   sensitive   = true
 }
 
+variable "tailscale_subnet_router_auth_key" {
+  description = "Tailscale auth key used by the bootstrap EC2 instance to join the tailnet and advertise the VPC subnet route."
+  type        = string
+  sensitive   = true
+}
+
 variable "tailscale_operator_hostname" {
   description = "Hostname assigned to the Tailscale Kubernetes Operator device."
   type        = string

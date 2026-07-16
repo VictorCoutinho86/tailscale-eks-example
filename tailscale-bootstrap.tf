@@ -10,14 +10,17 @@ resource "aws_instance" "bootstrap" {
 
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/bootstrap.sh.tftpl", {
-    aws_region                     = var.aws_region
-    cluster_name                   = module.eks.cluster_name
-    cluster_version                = var.cluster_version
-    tailscale_operator_values_yaml = local.tailscale_operator_values_yaml
-    argocd_chart_version           = var.argocd_chart_version
-    argocd_values_yaml             = local.argocd_values_yaml
-    argocd_tailscale_service_yaml  = local.argocd_tailscale_service_yaml
-    argocd_root_application_yaml   = local.argocd_root_application_yaml
+    aws_region                       = var.aws_region
+    cluster_name                     = module.eks.cluster_name
+    cluster_version                  = var.cluster_version
+    vpc_cidr                         = var.vpc_cidr
+    tailscale_subnet_router_auth_key = var.tailscale_subnet_router_auth_key
+    tailscale_subnet_router_hostname = local.tailscale_subnet_router_hostname
+    tailscale_operator_values_yaml   = local.tailscale_operator_values_yaml
+    argocd_chart_version             = var.argocd_chart_version
+    argocd_values_yaml               = local.argocd_values_yaml
+    argocd_tailscale_service_yaml    = local.argocd_tailscale_service_yaml
+    argocd_root_application_yaml     = local.argocd_root_application_yaml
   })
 
   metadata_options {

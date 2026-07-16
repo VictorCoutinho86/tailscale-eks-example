@@ -13,10 +13,11 @@ locals {
     for index, _ in local.azs : cidrsubnet(var.vpc_cidr, 8, index)
   ]
 
-  tailscale_operator_hostname = coalesce(var.tailscale_operator_hostname, "${local.name}-operator")
-  argocd_tailscale_hostname   = coalesce(var.argocd_tailscale_hostname, "${local.name}-argocd")
-  airflow_tailscale_hostname  = coalesce(var.airflow_tailscale_hostname, "${local.name}-airflow")
-  kubecost_tailscale_hostname = coalesce(var.kubecost_tailscale_hostname, "${local.name}-kubecost")
+  tailscale_operator_hostname      = coalesce(var.tailscale_operator_hostname, "${local.name}-operator")
+  tailscale_subnet_router_hostname = "${local.name}-subnet-router"
+  argocd_tailscale_hostname        = coalesce(var.argocd_tailscale_hostname, "${local.name}-argocd")
+  airflow_tailscale_hostname       = coalesce(var.airflow_tailscale_hostname, "${local.name}-airflow")
+  kubecost_tailscale_hostname      = coalesce(var.kubecost_tailscale_hostname, "${local.name}-kubecost")
 
   tailscale_operator_values_yaml = yamlencode({
     oauth = {
@@ -25,10 +26,6 @@ locals {
     }
     operatorConfig = {
       hostname = local.tailscale_operator_hostname
-    }
-    apiServerProxyConfig = {
-      mode               = true
-      allowImpersonation = true
     }
   })
 
