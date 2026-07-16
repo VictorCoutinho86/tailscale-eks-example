@@ -80,7 +80,7 @@ terraform apply tfplan
 
 ## GitOps Boundary
 
-Terraform creates AWS infrastructure, EKS, EKS addons, Karpenter AWS resources, the temporary bootstrap instance, and EKS Pod Identity roles/associations.
+Terraform creates AWS infrastructure, EKS, EKS addons, Karpenter AWS resources, the bootstrap instance that persists while used as the Tailscale subnet router, and EKS Pod Identity roles/associations.
 
 The bootstrap EC2 instance installs only:
 

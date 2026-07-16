@@ -59,7 +59,7 @@ output "argocd_path" {
 }
 
 output "bootstrap_instance_id" {
-  description = "Temporary bootstrap instance ID when enabled."
+  description = "Bootstrap subnet router instance ID when enabled."
   value       = try(aws_instance.bootstrap[0].id, null)
 }
 
