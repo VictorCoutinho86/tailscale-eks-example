@@ -13,7 +13,7 @@ module "aws_load_balancer_controller_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.0"
 
-  name = "${local.name}-aws-load-balancer-controller"
+  name = "${local.name}-aws-lbc"
 
   attach_aws_lb_controller_policy = true
 
