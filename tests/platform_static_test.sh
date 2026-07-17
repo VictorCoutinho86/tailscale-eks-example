@@ -19,17 +19,37 @@ if ! grep -q 'required_providers' "$platform_root/versions.tf" || ! grep -q 'sou
   exit 1
 fi
 
-if ! grep -q 'exec' "$platform_root/providers.tf"; then
-  printf 'expected the platform Helm/Kubernetes providers to authenticate with aws eks get-token\n' >&2
-  exit 1
-fi
+provider_block_contains() {
+  local provider_name="$1"
 
-get_token_count=$(grep -c 'get-token' "$platform_root/providers.tf" || true)
-aws_command_count=$(grep -c 'command[[:space:]]*=[[:space:]]*"aws"' "$platform_root/providers.tf" || true)
-if (( get_token_count < 2 || aws_command_count < 2 )); then
-  printf 'expected both platform providers to configure aws eks get-token authentication\n' >&2
-  exit 1
-fi
+  awk -v provider_name="$provider_name" '
+    $0 ~ "^[[:space:]]*provider[[:space:]]+\"" provider_name "\"[[:space:]]*\\{" {
+      in_block = 1
+      depth = 0
+    }
+
+    in_block {
+      block = block $0 "\n"
+      line = $0
+      depth += gsub(/\{/, "", line)
+      depth -= gsub(/\}/, "", line)
+
+      if (depth == 0) {
+        found = block ~ /exec/ && block ~ /get-token/ && block ~ /command[[:space:]]*=[[:space:]]*"aws"/
+        exit
+      }
+    }
+
+    END { exit(found ? 0 : 1) }
+  ' "$platform_root/providers.tf"
+}
+
+for provider in kubernetes helm; do
+  if ! provider_block_contains "$provider"; then
+    printf 'expected provider %s to configure aws eks get-token authentication\n' "$provider" >&2
+    exit 1
+  fi
+done
 
 if ! grep -q 'helm_release' "$platform_root/helm.tf"; then
   printf 'expected platform services to be installed with helm_release\n' >&2
@@ -43,10 +63,15 @@ for release in aws_load_balancer_controller external_dns argocd airflow kubecost
   fi
 done
 
-if ! grep -F -q -- 'resource "kubernetes_ingress_v1"' "$platform_root/kubernetes.tf" || ! grep -q 'for_each[[:space:]]*=[[:space:]]*local\.platform_ingresses' "$platform_root/kubernetes.tf"; then
-  printf 'expected one Ingress resource driven by local.platform_ingresses\n' >&2
-  exit 1
-fi
+for ingress_requirement in \
+  'resource "kubernetes_ingress_v1" "platform"' \
+  'for_each = local.platform_ingresses' \
+  'ingress_class_name = "alb"'; do
+  if ! grep -F -q -- "$ingress_requirement" "$platform_root/kubernetes.tf"; then
+    printf 'expected Ingress requirement %s\n' "$ingress_requirement" >&2
+    exit 1
+  fi
+done
 
 for hostname in argocd airflow kubecost; do
   if ! grep -q "hostname[[:space:]]*=[[:space:]]*\"${hostname}\." "$platform_root/locals.tf"; then
@@ -98,15 +123,39 @@ for resource in \
   fi
 done
 
-if grep -R -q -E -- 'apiServerProxyConfig|tailscale.com/loadBalancerClass|tailscale configure kubeconfig' "$bootstrap" "$platform_root" "$outputs"; then
-  printf 'expected old Tailscale API/UI delivery path to be removed\n' >&2
-  exit 1
-fi
+old_path_pattern='apiServerProxyConfig|tailscale\.com/loadBalancerClass|tailscale configure kubeconfig'
+for file in ./*.tf templates/*.tftpl platform/*; do
+  if [[ ! -f "$file" ]]; then
+    continue
+  fi
 
-if grep -E -q -- 'aws eks|awscli|kubectl|helm' "$bootstrap"; then
-  printf 'expected bootstrap instance to be subnet-router-only\n' >&2
-  exit 1
-fi
+  if ! content=$(<"$file"); then
+    printf 'unable to read static-check input %s\n' "$file" >&2
+    exit 1
+  fi
+
+  if [[ "$content" =~ $old_path_pattern ]]; then
+    printf 'expected old Tailscale API/UI delivery path to be removed from %s\n' "$file" >&2
+    exit 1
+  fi
+
+  case "$file" in
+    "$bootstrap")
+      forbidden_pattern='aws[[:space:]]+eks|awscli|kubectl|helm'
+      ;;
+    platform/*|outputs.tf)
+      forbidden_pattern='aws[[:space:]]+eks|awscli|kubectl|helm[[:space:]]+(upgrade|repo|install)'
+      ;;
+    *)
+      forbidden_pattern=''
+      ;;
+  esac
+
+  if [[ -n "$forbidden_pattern" && "$content" =~ $forbidden_pattern ]]; then
+    printf 'expected obsolete CLI delivery commands to be removed from %s\n' "$file" >&2
+    exit 1
+  fi
+done
 
 if grep -q 'module.eks\|module.karpenter' tailscale-bootstrap.tf; then
   printf 'expected subnet router EC2 to be independent of EKS creation\n' >&2
