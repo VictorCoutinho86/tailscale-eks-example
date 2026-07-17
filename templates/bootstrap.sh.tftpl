@@ -7,7 +7,7 @@ export VPC_CIDR="${vpc_cidr}"
 TAILSCALE_SUBNET_ROUTER_AUTH_KEY="${tailscale_subnet_router_auth_key}"
 export TAILSCALE_SUBNET_ROUTER_HOSTNAME="${tailscale_subnet_router_hostname}"
 
-dnf install -y curl-minimal
+dnf install -y curl-minimal unzip
 
 curl -fsSL https://tailscale.com/install.sh | sh
 
@@ -42,7 +42,10 @@ fi
 
 install_tools() {
   if ! command -v aws >/dev/null 2>&1; then
-    yum install -y awscli
+    curl -fsSL -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    unzip -q /tmp/awscliv2.zip -d /tmp
+    /tmp/aws/install --update
+    rm -rf /tmp/awscliv2.zip /tmp/aws
   fi
 
   if ! command -v kubectl >/dev/null 2>&1; then
