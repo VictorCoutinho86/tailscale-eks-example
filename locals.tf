@@ -9,7 +9,7 @@ data "aws_caller_identity" "current" {}
 locals {
   name = var.name
 
-  azs = slice(data.aws_availability_zones.available.names, 0, min(var.public_subnet_count, length(data.aws_availability_zones.available.names)))
+  azs = slice(data.aws_availability_zones.available.names, 0, 3)
 
   public_subnets = [
     for index, _ in local.azs : cidrsubnet(var.vpc_cidr, 8, index)
@@ -28,12 +28,12 @@ locals {
 }
 
 resource "terraform_data" "availability_zone_count" {
-  input = var.public_subnet_count
+  input = length(data.aws_availability_zones.available.names)
 
   lifecycle {
     precondition {
-      condition     = length(data.aws_availability_zones.available.names) >= var.public_subnet_count
-      error_message = "The selected AWS region must have at least public_subnet_count available Availability Zones."
+      condition     = length(data.aws_availability_zones.available.names) >= 3
+      error_message = "The selected AWS region must have at least 3 available Availability Zones."
     }
   }
 }

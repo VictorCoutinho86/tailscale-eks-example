@@ -1,0 +1,9 @@
+apiVersion: v2
+name: airflow-platform
+description: Platform-managed Apache Airflow
+type: application
+version: 0.1.0
+dependencies:
+  - name: airflow
+    version: 1.22.0
+    repository: https://airflow.apache.org

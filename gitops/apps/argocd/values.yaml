@@ -1,0 +1,7 @@
+argo-cd:
+  server:
+    service:
+      type: ClusterIP
+  configs:
+    params:
+      server.insecure: true

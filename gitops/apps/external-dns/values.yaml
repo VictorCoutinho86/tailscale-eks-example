@@ -1,0 +1,10 @@
+external-dns:
+  provider:
+    name: aws
+  serviceAccount:
+    create: false
+    name: external-dns
+  policy: upsert-only
+  registry: txt
+  extraArgs:
+    aws-zone-type: public

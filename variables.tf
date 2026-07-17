@@ -33,17 +33,6 @@ variable "route53_domain_name" {
   type        = string
 }
 
-variable "public_subnet_count" {
-  description = "Number of public subnets and Availability Zones to use."
-  type        = number
-  default     = 3
-
-  validation {
-    condition     = var.public_subnet_count >= 2 && var.public_subnet_count <= 6
-    error_message = "public_subnet_count must be between 2 and 6."
-  }
-}
-
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster."
   type        = string

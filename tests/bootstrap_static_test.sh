@@ -36,11 +36,6 @@ if grep -q '^export TAILSCALE_SUBNET_ROUTER_AUTH_KEY=' "$bootstrap"; then
   exit 1
 fi
 
-if grep -Eq 'aws[[:space:]]+eks|awscli|kubectl|helm' "$bootstrap"; then
-  printf 'expected bootstrap script to be subnet-router-only with no EKS/kubectl/helm commands\n' >&2
-  exit 1
-fi
-
 if ! grep -q -- '--auth-key="\$TAILSCALE_SUBNET_ROUTER_AUTH_KEY"' "$bootstrap"; then
   printf 'expected tailscale up to use the subnet router auth key\n' >&2
   exit 1
@@ -80,3 +75,27 @@ if grep -q 'tailscale configure kubeconfig\|aws eks update-kubeconfig' "$outputs
   printf 'expected outputs to avoid kubeconfig command recommendations in the platform Terraform flow\n' >&2
   exit 1
 fi
+
+for expected in \
+  'aws eks update-kubeconfig' \
+  'helm upgrade --install argocd' \
+  'kubectl apply' \
+  'argocd-bootstrap.service' \
+  'argocd-bootstrap.timer' \
+  'systemctl enable --now argocd-bootstrap.timer'; do
+  if ! grep -q "$expected" "$bootstrap"; then
+    printf 'expected bootstrap template to contain %s\n' "$expected" >&2
+    exit 1
+  fi
+done
+
+for expected in \
+  'set -euo pipefail' \
+  'until aws eks describe-cluster' \
+  'until kubectl get namespace kube-system' \
+  '/var/lib/argocd-bootstrap/succeeded'; do
+  if ! grep -q "$expected" "$bootstrap"; then
+    printf 'expected idempotent/retryable bootstrap behavior %s\n' "$expected" >&2
+    exit 1
+  fi
+done

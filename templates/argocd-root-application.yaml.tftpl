@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+spec:
+  project: default
+  source:
+    repoURL: ${repo_url}
+    targetRevision: ${target_revision}
+    path: gitops/root
+    helm:
+      parameters:
+        - name: global.repoURL
+          value: ${repo_url}
+        - name: global.targetRevision
+          value: ${target_revision}
+        - name: global.clusterName
+          value: ${cluster_name}
+        - name: global.awsRegion
+          value: ${aws_region}
+        - name: global.vpcId
+          value: ${vpc_id}
+        - name: global.domain
+          value: ${domain}
+        - name: global.certificateArn
+          value: ${certificate_arn}
+        - name: global.karpenterQueueName
+          value: ${karpenter_queue_name}
+        - name: global.karpenterNodeRoleName
+          value: ${karpenter_node_role_name}
+        - name: global.sparkWorkloadNamespace
+          value: ${spark_workload_namespace}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

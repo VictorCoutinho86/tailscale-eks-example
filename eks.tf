@@ -85,6 +85,17 @@ module "eks" {
         }
       }
     }
+    bootstrap_instance = {
+      principal_arn = aws_iam_role.bootstrap.arn
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:${data.aws_partition.current.partition}:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
   }
 
   node_security_group_tags = merge(local.tags, {

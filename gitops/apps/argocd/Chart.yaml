@@ -1,0 +1,9 @@
+apiVersion: v2
+name: argocd-platform
+description: Platform-managed Argo CD
+type: application
+version: 0.1.0
+dependencies:
+  - name: argo-cd
+    version: 8.5.7
+    repository: https://argoproj.github.io/argo-helm

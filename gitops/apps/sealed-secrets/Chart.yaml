@@ -1,0 +1,9 @@
+apiVersion: v2
+name: sealed-secrets-platform
+description: Platform-managed Sealed Secrets
+type: application
+version: 0.1.0
+dependencies:
+  - name: sealed-secrets
+    version: 2.17.7
+    repository: https://bitnami-labs.github.io/sealed-secrets

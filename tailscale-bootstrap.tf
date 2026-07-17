@@ -13,6 +13,28 @@ resource "aws_instance" "bootstrap" {
     vpc_cidr                         = var.vpc_cidr
     tailscale_subnet_router_auth_key = var.tailscale_subnet_router_auth_key
     tailscale_subnet_router_hostname = local.tailscale_subnet_router_hostname
+    cluster_name                     = module.eks.cluster_name
+    aws_region                       = var.aws_region
+    argocd_chart_version             = "8.5.7"
+    gitops_repo_url                  = "https://github.com/VictorCoutinho86/tailscale-eks-example.git"
+    gitops_target_revision           = "master"
+    route53_domain_name              = trimsuffix(var.route53_domain_name, ".")
+    platform_certificate_arn         = aws_acm_certificate_validation.platform.certificate_arn
+    karpenter_queue_name             = module.karpenter.queue_name
+    karpenter_node_role_name         = module.karpenter.node_iam_role_name
+    spark_workload_namespace         = var.spark_workload_namespace
+    argocd_root_application = templatefile("${path.module}/templates/argocd-root-application.yaml.tftpl", {
+      repo_url                 = "https://github.com/VictorCoutinho86/tailscale-eks-example.git"
+      target_revision          = "master"
+      cluster_name             = module.eks.cluster_name
+      aws_region               = var.aws_region
+      vpc_id                   = module.vpc.vpc_id
+      domain                   = trimsuffix(var.route53_domain_name, ".")
+      certificate_arn          = aws_acm_certificate_validation.platform.certificate_arn
+      karpenter_queue_name     = module.karpenter.queue_name
+      karpenter_node_role_name = module.karpenter.node_iam_role_name
+      spark_workload_namespace = var.spark_workload_namespace
+    })
   })
 
   metadata_options {

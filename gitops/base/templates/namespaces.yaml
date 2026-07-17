@@ -1,0 +1,9 @@
+{{- range $namespace := list "argocd" "airflow" "kubecost" "spark-operator" .Values.global.sparkWorkloadNamespace "karpenter" "sealed-secrets" }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $namespace | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+{{- end }}

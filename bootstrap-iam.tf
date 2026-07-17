@@ -60,3 +60,21 @@ resource "aws_iam_instance_profile" "bootstrap" {
 
   tags = local.tags
 }
+
+resource "aws_iam_role_policy" "bootstrap_eks_discovery" {
+  name = "${local.name}-bootstrap-eks-discovery"
+  role = aws_iam_role.bootstrap.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = module.eks.cluster_arn
+      }
+    ]
+  })
+}

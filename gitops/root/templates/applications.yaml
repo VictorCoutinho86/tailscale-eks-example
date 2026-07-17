@@ -1,0 +1,87 @@
+{{- $repoURL := .Values.global.repoURL -}}
+{{- $targetRevision := .Values.global.targetRevision -}}
+{{- $apps := list
+  (dict "name" "base" "path" "gitops/base" "namespace" "argocd" "wave" "0")
+  (dict "name" "aws-load-balancer-controller" "path" "gitops/apps/aws-load-balancer-controller" "namespace" "kube-system" "wave" "1")
+  (dict "name" "external-dns" "path" "gitops/apps/external-dns" "namespace" "kube-system" "wave" "1")
+  (dict "name" "sealed-secrets" "path" "gitops/apps/sealed-secrets" "namespace" "sealed-secrets" "wave" "1")
+  (dict "name" "argocd" "path" "gitops/apps/argocd" "namespace" "argocd" "wave" "2")
+  (dict "name" "karpenter" "path" "gitops/apps/karpenter" "namespace" "karpenter" "wave" "2")
+  (dict "name" "karpenter-resources" "path" "gitops/apps/karpenter-resources/chart" "namespace" "karpenter" "wave" "3")
+  (dict "name" "airflow" "path" "gitops/apps/airflow" "namespace" "airflow" "wave" "4")
+  (dict "name" "spark-operator" "path" "gitops/apps/spark-operator" "namespace" "spark-operator" "wave" "4")
+  (dict "name" "kubecost" "path" "gitops/apps/kubecost" "namespace" "kubecost" "wave" "4")
+-}}
+{{- range $app := $apps }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $app.name }}
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $app.wave | quote }}
+spec:
+  project: default
+  source:
+    repoURL: {{ $repoURL | quote }}
+    targetRevision: {{ $targetRevision | quote }}
+    path: {{ $app.path | quote }}
+    helm:
+      values: |
+        global:
+{{ toYaml $.Values.global | indent 10 }}
+{{ if eq $app.name "aws-load-balancer-controller" }}
+        aws-load-balancer-controller:
+          clusterName: {{ $.Values.global.clusterName | quote }}
+          region: {{ $.Values.global.awsRegion | quote }}
+          vpcId: {{ $.Values.global.vpcId | quote }}
+          serviceAccount:
+            create: false
+            name: aws-load-balancer-controller
+{{ else if eq $app.name "external-dns" }}
+        external-dns:
+          provider:
+            name: aws
+          serviceAccount:
+            create: false
+            name: external-dns
+          policy: upsert-only
+          registry: txt
+          txtOwnerId: {{ $.Values.global.clusterName | quote }}
+          domainFilters:
+            - {{ $.Values.global.domain | quote }}
+          extraArgs:
+            aws-zone-type: public
+{{ else if eq $app.name "karpenter" }}
+        karpenter:
+          settings:
+            clusterName: {{ $.Values.global.clusterName | quote }}
+            interruptionQueue: {{ $.Values.global.karpenterQueueName | quote }}
+{{ else if eq $app.name "karpenter-resources" }}
+        clusterName: {{ $.Values.global.clusterName | quote }}
+        nodeRoleName: {{ $.Values.global.karpenterNodeRoleName | quote }}
+        sparkNodeLabels:
+          workload: spark
+{{ else if eq $app.name "kubecost" }}
+        cost-analyzer:
+          global:
+            clusterId: {{ $.Values.global.clusterName | quote }}
+          prometheus:
+            server:
+              global:
+                external_labels:
+                  cluster_id: {{ $.Values.global.clusterName | quote }}
+{{ end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $app.namespace | quote }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
