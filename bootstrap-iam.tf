@@ -77,6 +77,11 @@ resource "aws_iam_instance_profile" "bootstrap" {
   tags = local.tags
 }
 
+resource "aws_iam_role_policy_attachment" "bootstrap_ssm" {
+  role       = aws_iam_role.bootstrap.name
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_role_policy" "bootstrap_eks_discovery" {
   name = "${local.name}-bootstrap-eks-discovery"
   role = aws_iam_role.bootstrap.id
