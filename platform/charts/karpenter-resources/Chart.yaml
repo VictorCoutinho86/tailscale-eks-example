@@ -1,0 +1,6 @@
+apiVersion: v2
+name: karpenter-resources
+description: Karpenter EC2NodeClass and NodePools for the example platform.
+type: application
+version: 0.1.0
+appVersion: "1.0"

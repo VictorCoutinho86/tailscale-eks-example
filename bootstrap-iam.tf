@@ -54,24 +54,6 @@ resource "aws_iam_role" "bootstrap" {
   tags = local.tags
 }
 
-resource "aws_iam_role_policy" "bootstrap" {
-  name = "${local.name}-bootstrap"
-  role = aws_iam_role.bootstrap.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "eks:DescribeCluster"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
 resource "aws_iam_instance_profile" "bootstrap" {
   name = "${local.name}-bootstrap"
   role = aws_iam_role.bootstrap.name

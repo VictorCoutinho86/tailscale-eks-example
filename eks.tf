@@ -50,7 +50,7 @@ module "eks" {
 
   security_group_additional_rules = var.enable_bootstrap_instance ? {
     bootstrap_https = {
-      description              = "Allow bootstrap instance to reach the private EKS API endpoint"
+      description              = "Allow subnet router instance to reach the private EKS API endpoint"
       protocol                 = "tcp"
       from_port                = 443
       to_port                  = 443
@@ -73,9 +73,9 @@ module "eks" {
     }
   }
 
-  access_entries = var.enable_bootstrap_instance ? {
-    bootstrap = {
-      principal_arn = aws_iam_role.bootstrap.arn
+  access_entries = {
+    current_caller = {
+      principal_arn = data.aws_caller_identity.current.arn
       policy_associations = {
         admin = {
           policy_arn = "arn:${data.aws_partition.current.partition}:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
@@ -85,7 +85,7 @@ module "eks" {
         }
       }
     }
-  } : {}
+  }
 
   node_security_group_tags = merge(local.tags, {
     "karpenter.sh/discovery" = local.name

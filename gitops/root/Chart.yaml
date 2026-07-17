@@ -1,5 +1,0 @@
-apiVersion: v2
-name: tailscale-eks-platform-root
-description: Argo CD app-of-apps for the Tailscale EKS platform example.
-type: application
-version: 0.1.0

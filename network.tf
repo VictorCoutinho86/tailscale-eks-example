@@ -16,8 +16,9 @@ module "vpc" {
   map_public_ip_on_launch = true
 
   public_subnet_tags = {
-    "kubernetes.io/role/elb" = "1"
-    "karpenter.sh/discovery" = local.name
+    "kubernetes.io/role/elb"          = "1"
+    "kubernetes.io/role/internal-elb" = "1"
+    "karpenter.sh/discovery"          = local.name
   }
 
   tags = local.tags

@@ -8,6 +8,12 @@ output "cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
+output "cluster_ca_certificate" {
+  description = "Base64-encoded CA certificate for the private EKS endpoint."
+  value       = module.eks.cluster_certificate_authority_data
+  sensitive   = true
+}
+
 output "aws_region" {
   description = "AWS region used by this stack."
   value       = var.aws_region
@@ -23,11 +29,6 @@ output "public_subnet_ids" {
   value       = module.vpc.public_subnets
 }
 
-output "tailscale_operator_hostname" {
-  description = "Tailscale Operator hostname used for in-cluster Tailscale Services."
-  value       = local.tailscale_operator_hostname
-}
-
 output "tailscale_subnet_router_hostname" {
   description = "Tailscale subnet router hostname that advertises the VPC CIDR."
   value       = local.tailscale_subnet_router_hostname
@@ -36,26 +37,6 @@ output "tailscale_subnet_router_hostname" {
 output "tailscale_subnet_route" {
   description = "VPC CIDR advertised by the Tailscale subnet router. Approve this route in the Tailscale admin console."
   value       = var.vpc_cidr
-}
-
-output "aws_kubeconfig_command" {
-  description = "Command to configure kubeconfig for the private EKS endpoint after the Tailscale subnet route is approved."
-  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
-}
-
-output "argocd_tailscale_hostname" {
-  description = "Tailscale hostname for the Argo CD UI."
-  value       = local.argocd_tailscale_hostname
-}
-
-output "argocd_repo_url" {
-  description = "Git repository URL Argo CD syncs."
-  value       = var.argocd_repo_url
-}
-
-output "argocd_path" {
-  description = "Git repository path for the Argo CD root app-of-apps."
-  value       = var.argocd_path
 }
 
 output "bootstrap_instance_id" {
@@ -68,12 +49,27 @@ output "karpenter_queue_name" {
   value       = module.karpenter.queue_name
 }
 
-output "airflow_tailscale_hostname" {
-  description = "Tailscale hostname for the Airflow UI."
-  value       = local.airflow_tailscale_hostname
+output "karpenter_node_role_name" {
+  description = "Karpenter node IAM role name used by EC2NodeClass resources."
+  value       = module.karpenter.node_iam_role_name
 }
 
-output "kubecost_tailscale_hostname" {
-  description = "Tailscale hostname for the Kubecost UI."
-  value       = local.kubecost_tailscale_hostname
+output "route53_domain_name" {
+  description = "Public Route 53 domain managed by ExternalDNS."
+  value       = trimsuffix(var.route53_domain_name, ".")
+}
+
+output "route53_hosted_zone_id" {
+  description = "Existing public Route 53 hosted zone ID."
+  value       = data.aws_route53_zone.platform.zone_id
+}
+
+output "route53_hosted_zone_arn" {
+  description = "Existing public Route 53 hosted zone ARN."
+  value       = local.route53_hosted_zone_arn
+}
+
+output "platform_certificate_arn" {
+  description = "Validated ACM wildcard certificate ARN for the platform ALB."
+  value       = aws_acm_certificate_validation.platform.certificate_arn
 }

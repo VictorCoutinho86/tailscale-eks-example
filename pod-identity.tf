@@ -9,6 +9,47 @@ module "aws_ebs_csi_pod_identity" {
   tags = local.tags
 }
 
+module "aws_load_balancer_controller_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.0"
+
+  name = "${local.name}-aws-load-balancer-controller"
+
+  attach_aws_lb_controller_policy = true
+
+  associations = {
+    aws_load_balancer_controller = {
+      cluster_name    = local.name
+      namespace       = "kube-system"
+      service_account = "aws-load-balancer-controller"
+    }
+  }
+
+  depends_on = [module.eks]
+  tags       = local.tags
+}
+
+module "external_dns_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.0"
+
+  name = "${local.name}-external-dns"
+
+  attach_external_dns_policy    = true
+  external_dns_hosted_zone_arns = [local.route53_hosted_zone_arn]
+
+  associations = {
+    external_dns = {
+      cluster_name    = local.name
+      namespace       = "kube-system"
+      service_account = "external-dns"
+    }
+  }
+
+  depends_on = [module.eks]
+  tags       = local.tags
+}
+
 module "airflow_task_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.0"

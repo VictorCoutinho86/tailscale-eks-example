@@ -1,87 +1,25 @@
 #!/bin/bash
 set -euo pipefail
 
-exec > >(tee /var/log/eks-bootstrap.log | logger -t eks-bootstrap -s 2>/dev/console) 2>&1
+exec > >(tee /var/log/tailscale-subnet-router.log | logger -t tailscale-subnet-router -s 2>/dev/console) 2>&1
 
-export AWS_REGION="${aws_region}"
-export CLUSTER_NAME="${cluster_name}"
-export CLUSTER_VERSION="${cluster_version}"
 export VPC_CIDR="${vpc_cidr}"
 TAILSCALE_SUBNET_ROUTER_AUTH_KEY="${tailscale_subnet_router_auth_key}"
 export TAILSCALE_SUBNET_ROUTER_HOSTNAME="${tailscale_subnet_router_hostname}"
-install -d -m 0700 /var/lib/eks-bootstrap
-export KUBECONFIG="/var/lib/eks-bootstrap/kubeconfig"
 
-dnf install -y curl-minimal tar gzip unzip jq awscli
+dnf install -y curl-minimal
 
 curl -fsSL https://tailscale.com/install.sh | sh
-systemctl enable --now tailscaled
 
 cat >/etc/sysctl.d/99-tailscale.conf <<'EOF'
 net.ipv4.ip_forward = 1
 EOF
 sysctl -p /etc/sysctl.d/99-tailscale.conf
 
+systemctl enable --now tailscaled
 tailscale up \
   --auth-key="$TAILSCALE_SUBNET_ROUTER_AUTH_KEY" \
   --hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME" \
   --advertise-routes="$VPC_CIDR" \
   --accept-dns=false
 unset TAILSCALE_SUBNET_ROUTER_AUTH_KEY
-
-curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-KUBECTL_VERSION="$(curl -fsSL "https://dl.k8s.io/release/stable-${cluster_version}.txt")"
-curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-chmod +x /usr/local/bin/kubectl
-
-aws eks update-kubeconfig --region "${aws_region}" --name "${cluster_name}" --kubeconfig "$KUBECONFIG"
-
-helm repo add --force-update tailscale https://pkgs.tailscale.com/helmcharts
-helm repo add --force-update argo https://argoproj.github.io/argo-helm
-helm repo update
-
-install -m 0600 /dev/null /tmp/tailscale-values.yaml
-install -m 0600 /dev/null /tmp/argocd-values.yaml
-trap 'rm -f /tmp/tailscale-values.yaml /tmp/argocd-values.yaml /tmp/argocd-tailscale-service.yaml /tmp/argocd-root-application.yaml' EXIT
-cat >/tmp/tailscale-values.yaml <<'YAML'
-${tailscale_operator_values_yaml}
-YAML
-
-cat >/tmp/argocd-values.yaml <<'YAML'
-${argocd_values_yaml}
-YAML
-
-helm upgrade --install tailscale-operator tailscale/tailscale-operator \
-  --namespace=tailscale \
-  --create-namespace \
-  -f /tmp/tailscale-values.yaml \
-  --timeout 10m \
-  --wait
-
-helm upgrade --install argocd argo/argo-cd \
-  --version '${argocd_chart_version}' \
-  --namespace argocd \
-  --create-namespace \
-  -f /tmp/argocd-values.yaml \
-  --timeout 15m \
-  --wait
-
-kubectl wait --for=condition=Established crd/applications.argoproj.io --timeout=5m
-
-cat >/tmp/argocd-tailscale-service.yaml <<'YAML'
-${argocd_tailscale_service_yaml}
-YAML
-
-cat >/tmp/argocd-root-application.yaml <<'YAML'
-${argocd_root_application_yaml}
-YAML
-
-kubectl apply -f /tmp/argocd-tailscale-service.yaml
-kubectl apply -f /tmp/argocd-root-application.yaml
-
-kubectl -n tailscale rollout status deployment/operator --timeout=10m
-kubectl -n argocd rollout status deployment/argocd-server --timeout=10m
-kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=10m
-kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=10m
-kubectl -n argocd get application platform-root

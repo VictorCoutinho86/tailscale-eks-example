@@ -1,12 +1,12 @@
 # Tailscale EKS Example
 
-Terraform infrastructure for an Amazon EKS cluster with a private API endpoint, Tailscale-based cluster access, Argo CD GitOps delivery, Karpenter autoscaling, Airflow, Kubecost, and Spark Operator.
+Terraform infrastructure for a private Amazon EKS platform accessed through a Tailscale subnet router. Platform services are installed with a second Terraform application using `helm_release`, exposed through one internal AWS Application Load Balancer, protected by ACM TLS, and registered in Route 53 by ExternalDNS.
 
 ## Architecture
 
 ![Tailscale EKS platform architecture](docs/architecture.png)
 
-The diagram is generated with [Diagrams](https://diagrams.mingrammer.com/). Regenerate it with:
+Regenerate the diagram with:
 
 ```bash
 uv run --script docs/architecture_diagram.py
@@ -15,36 +15,24 @@ uv run --script docs/architecture_diagram.py
 ## Prerequisites
 
 - Terraform `>= 1.5.7`.
-- AWS credentials with access to create VPC, EKS, IAM, EC2, SQS, EventBridge, and related resources.
-- Tailscale OAuth client ID and secret for the Kubernetes Operator.
-- Tailscale CLI on the operator machine for subnet router validation.
-- `kubectl` for post-bootstrap validation.
-- A Git remote containing this repository, because Argo CD syncs `gitops/root` from `argocd_repo_url`.
+- AWS credentials with permissions for VPC, EKS, IAM, EC2, SQS, EventBridge, ACM, Route 53, and ELB resources.
+- A public Route 53 hosted zone for `route53_domain_name`.
+- A reusable, non-ephemeral Tailscale auth key for the subnet router EC2 instance.
+- Tailscale CLI on the local machine.
+- AWS CLI and `kubectl` on the local machine.
 
-## Usage
+## Root Infrastructure
 
-Create a local `terraform.tfvars` file. Do not commit this file; it contains Tailscale OAuth credentials and `.gitignore` excludes `*.tfvars`.
+Create a local `terraform.tfvars` file. Do not commit it; `.gitignore` excludes `*.tfvars`.
 
 ```hcl
-tailscale_oauth_client_id        = "tskey-client-example"
-tailscale_oauth_client_secret    = "tskey-secret-example"
+aws_profile         = "victor"
+route53_domain_name = "example.com"
+
 tailscale_subnet_router_auth_key = "tskey-auth-example"
-
-# Required after this repository is published.
-argocd_repo_url = "https://github.com/VictorCoutinho86/tailscale-eks-example.git"
-
-# Optional GitOps overrides.
-argocd_target_revision = "master"
-argocd_path            = "gitops/root"
-
-# Optional hostname overrides. Defaults are based on var.name.
-tailscale_operator_hostname = "tailscale-eks-example-operator"
-argocd_tailscale_hostname   = "tailscale-eks-example-argocd"
-airflow_tailscale_hostname  = "tailscale-eks-example-airflow"
-kubecost_tailscale_hostname = "tailscale-eks-example-kubecost"
 ```
 
-Optional workload AWS permissions are intentionally empty by default. Add least-privilege statements only when concrete AWS resource ARNs are known:
+Optional workload AWS permissions are empty by default. Add least-privilege statements only when concrete AWS resource ARNs are known:
 
 ```hcl
 airflow_task_policy_statements = [
@@ -64,51 +52,26 @@ spark_workload_policy_statements = [
 ]
 ```
 
-Initialize and review the stack:
+Apply the root infrastructure first:
 
 ```bash
 terraform init
 terraform validate
 terraform plan -out=tfplan
-```
-
-Apply only after reviewing the plan:
-
-```bash
 terraform apply tfplan
 ```
 
-## GitOps Boundary
+The root stack creates:
 
-Terraform creates AWS infrastructure, EKS, EKS addons, Karpenter AWS resources, the bootstrap instance that persists while used as the Tailscale subnet router, and EKS Pod Identity roles/associations.
+- VPC and public subnets tagged for Karpenter and internal ALB discovery.
+- Persistent EC2 subnet router running Tailscale.
+- Private-only EKS cluster and managed node group.
+- EKS addons and EBS CSI Pod Identity.
+- Karpenter AWS resources.
+- Pod Identity roles for AWS Load Balancer Controller, ExternalDNS, Airflow tasks, and Spark workloads.
+- ACM wildcard certificate for `*.${route53_domain_name}` validated through the existing public Route 53 hosted zone.
 
-The bootstrap EC2 instance installs only:
-
-- Tailscale Kubernetes Operator.
-- Argo CD.
-- Argo CD Tailscale Service.
-- One Argo CD root Application pointing at `argocd_repo_url`, `argocd_target_revision`, and `argocd_path`.
-
-Argo CD then reconciles:
-
-- Karpenter Helm chart.
-- Karpenter `EC2NodeClass` and `NodePool`.
-- Airflow Helm chart.
-- Kubecost Helm chart.
-- Spark Operator Helm chart.
-- `gp3` StorageClass.
-- Airflow/Spark ServiceAccounts and RBAC.
-- Argo CD, Airflow, and Kubecost Tailscale Services.
-
-Airflow chart values live in `gitops/values/airflow.yaml`. The Airflow Argo CD Application uses multi-source Helm values so it can install the upstream chart from `https://airflow.apache.org` while reading `$values/gitops/values/airflow.yaml` from this repository.
-
-The Airflow values disable Helm hooks for `createUserJob` and `migrateDatabaseJob`, which avoids common GitOps/Argo CD issues with Helm hooks and immutable Kubernetes Jobs. The migration job also has `argocd.argoproj.io/hook: Sync` so migrations run during Argo CD sync.
-
-## Access
-
-The EKS API endpoint is private. Local `kubectl` access uses the Tailscale subnet router running on the bootstrap EC2 instance.
-
-After `terraform apply`, approve the advertised VPC route in the Tailscale Admin Console:
+After apply, approve the advertised VPC route in the Tailscale Admin Console:
 
 ```bash
 terraform output -raw tailscale_subnet_router_hostname
@@ -117,7 +80,41 @@ terraform output -raw tailscale_subnet_route
 
 For the default VPC, approve `10.0.0.0/16` on `tailscale-eks-example-subnet-router`.
 
-Then configure kubeconfig with AWS EKS:
+## Platform Application
+
+After the Tailscale route is approved, apply the platform Terraform application:
+
+```bash
+terraform -chdir=platform init
+terraform -chdir=platform validate
+terraform -chdir=platform plan -out=platform.tfplan
+terraform -chdir=platform apply platform.tfplan
+```
+
+The platform stack connects to the private EKS endpoint over the Tailscale subnet route and installs:
+
+- AWS Load Balancer Controller.
+- ExternalDNS.
+- Argo CD.
+- Airflow.
+- Kubecost.
+- Spark Operator.
+- Karpenter Helm chart.
+- Namespaces, `gp3` StorageClass, service accounts, RBAC, Karpenter `EC2NodeClass`/`NodePool`, and Ingresses.
+
+One internal ALB serves the three UI endpoints using host-based routing:
+
+```text
+https://argocd.example.com
+https://airflow.example.com
+https://kubecost.example.com
+```
+
+ExternalDNS creates the records in the existing public hosted zone. The names are publicly discoverable, but the ALB is internal and reachable only from the VPC, including through the approved Tailscale subnet route.
+
+## Access
+
+Configure local kubeconfig after the subnet route is active:
 
 ```bash
 aws eks update-kubeconfig \
@@ -128,17 +125,13 @@ aws eks update-kubeconfig \
 kubectl get nodes
 ```
 
-If the private EKS endpoint hostname does not resolve from your local machine, configure Tailscale Split DNS to forward the relevant AWS private DNS name to the VPC resolver. For the default `10.0.0.0/16` VPC, the resolver is usually `10.0.0.2`.
+Open the platform URLs from a tailnet device after `platform` apply and DNS propagation:
 
-Get UI hostnames:
-
-```bash
-terraform output -raw argocd_tailscale_hostname
-terraform output -raw airflow_tailscale_hostname
-terraform output -raw kubecost_tailscale_hostname
+```text
+https://argocd.$(terraform output -raw route53_domain_name)
+https://airflow.$(terraform output -raw route53_domain_name)
+https://kubecost.$(terraform output -raw route53_domain_name)
 ```
-
-Open those hostnames from a device in the tailnet. They are exposed through Tailscale Services, not public AWS load balancers.
 
 To get the initial Argo CD admin password:
 
@@ -148,128 +141,68 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 ## Permissions Model
 
-AWS permissions and Kubernetes permissions are separate.
-
 - AWS permissions use EKS Pod Identity through `terraform-aws-modules/eks-pod-identity/aws`.
-- Kubernetes permissions use namespaced `Role` and `RoleBinding` manifests under `gitops/root/templates`.
+- Kubernetes permissions use Terraform-managed Kubernetes RBAC in `platform/kubernetes.tf`.
 - `aws-ebs-csi-driver` uses a Pod Identity role with the EBS CSI policy.
-- `airflow-task` is the Airflow task pod identity for AWS APIs such as S3, Athena, Glue, EMR, RDS IAM auth, or KMS when explicitly configured.
-- `spark-workload` is the Spark driver/executor identity for AWS APIs such as S3, Athena, Glue, RDS IAM auth, or KMS when explicitly configured.
-- Spark Operator does not receive broad AWS data-plane permissions by default.
-- ECR image pull permissions normally belong to the node/Kubelet path, not application ServiceAccounts.
+- AWS Load Balancer Controller uses a Pod Identity role with the AWS LB Controller policy.
+- ExternalDNS uses a Pod Identity role scoped to the discovered Route 53 hosted zone.
+- `airflow-task` is the Airflow task pod identity for AWS APIs when explicitly configured.
+- `spark-workload` is the Spark driver/executor identity for AWS APIs when explicitly configured.
 
-## Bootstrap Instance and Subnet Router
+## Subnet Router
 
-The bootstrap EC2 instance is persistent in this design because it also acts as the Tailscale subnet router for private EKS API access.
+The EC2 subnet router is persistent infrastructure. Do not set `enable_bootstrap_instance=false` unless another subnet router advertises the VPC CIDR. Removing it breaks local access to the private EKS endpoint and internal ALB.
 
-Do not set `enable_bootstrap_instance=false` unless another subnet router advertises the VPC CIDR. Removing the bootstrap instance removes the subnet route and breaks local `kubectl` access to the private endpoint.
+The Tailscale auth key is sensitive and appears in Terraform state through EC2 user data. Protect local and remote state.
 
 ## Defaults
 
 - Region: `us-east-1`.
 - Kubernetes: `1.36`.
-- Network: 4 public subnets, no NAT Gateway, S3 Gateway endpoint.
+- Network: public subnets, no NAT Gateway, S3 Gateway endpoint.
 - EKS API endpoint: private only.
 - Managed EKS addons: VPC CNI, EKS Pod Identity Agent, CoreDNS, kube-proxy, and EBS CSI driver.
-- Storage: default encrypted `gp3` StorageClass managed by Argo CD.
-- Default node group: 4 `t4g.small` On-Demand nodes.
-- Argo CD: chart `8.5.7`, UI exposed through Tailscale.
-- Karpenter: chart `1.13.0`, AWS resources from `terraform-aws-modules/eks/aws//modules/karpenter`, default NodePool for `t2`, `t3`, and `t4g` Spot or On-Demand nodes.
-- Spark Karpenter NodePool: dedicated `spark` NodePool, tainted with `workload=spark:NoSchedule`, limited to `r` instance category, Spot or On-Demand, and instance types with local NVMe storage.
-- Airflow: chart `1.22.0`, `KubernetesExecutor`, embedded PostgreSQL.
-- Kubecost: chart `2.8.7`.
-- Spark Operator: chart `2.5.1`, webhook enabled.
-- Airflow and Kubecost access: Tailscale `LoadBalancer` Services.
-
-## Approximate Monthly Cost
-
-Approximate for `us-east-1`; excludes taxes, data transfer, logs, workload storage, and Karpenter-created workload nodes.
-
-```text
-EKS control plane:                 about US$73/month
-4x t4g.small On-Demand nodes:       about US$49/month
-4x public IPv4 addresses:           about US$15/month
-4x gp3 root EBS volumes:            about US$6/month
-S3 Gateway VPC endpoint:            US$0/hour endpoint charge
-Bootstrap subnet router t3.micro:    while enable_bootstrap_instance=true
-Karpenter nodes:                     variable by workload and Spot/On-Demand mix
-Argo CD/Airflow/Kubecost/Spark:      variable compute and persistent volume cost
-
-Estimated base infrastructure:       about US$140-150/month before platform growth
-```
-
-Public IPv4 cost is accepted for now. If it becomes material, move nodes away from public IPv4 and add the required private endpoints or another egress design.
-
-## Notes
-
-- The EKS public API endpoint is disabled; access is through the Tailscale subnet route to the private endpoint.
-- The bootstrap EC2 instance exists because the private endpoint needs an in-VPC installer for initial Tailscale and Argo CD setup.
-- Terraform variables are marked sensitive, but Tailscale credentials can still land in Terraform state through rendered bootstrap user data. Protect local and remote state.
-- Karpenter AWS resources are created by `terraform-aws-modules/eks/aws//modules/karpenter`.
-- Airflow embedded PostgreSQL is acceptable for this example but should not be treated as production-critical storage.
-- Argo CD, Airflow, and Kubecost are exposed through Tailscale Services, not public AWS load balancers.
-- The bootstrap instance writes logs to `/var/log/eks-bootstrap.log`.
-
-## Spark Job Scheduling
-
-Spark jobs should use the dedicated Karpenter NodePool by setting the driver and executor pod scheduling fields in each `SparkApplication`:
-
-```yaml
-spec:
-  driver:
-    serviceAccount: spark-workload
-    nodeSelector:
-      workload: spark
-    tolerations:
-      - key: workload
-        operator: Equal
-        value: spark
-        effect: NoSchedule
-  executor:
-    nodeSelector:
-      workload: spark
-    tolerations:
-      - key: workload
-        operator: Equal
-        value: spark
-        effect: NoSchedule
-```
-
-The `spark` NodePool only allows `r` family instances with local NVMe storage and supports both Spot and On-Demand capacity. Non-Spark pods cannot schedule there unless they explicitly tolerate `workload=spark:NoSchedule`.
+- Storage: default encrypted `gp3` StorageClass.
+- Default node group: `t4g.small` Spot nodes.
+- Argo CD chart: `8.5.7`.
+- Airflow chart: `1.22.0`, `KubernetesExecutor`, embedded PostgreSQL.
+- Kubecost chart: `2.8.7`.
+- Spark Operator chart: `2.5.1`.
+- Karpenter chart: `1.13.0`.
 
 ## Validation
 
 Static validation:
 
 ```bash
-terraform fmt -check -recursive
-terraform validate
-terraform plan -out=tfplan
+bash tests/bootstrap_static_test.sh
+bash tests/platform_static_test.sh
 bash -n templates/bootstrap.sh.tftpl
+terraform fmt -check *.tf
+terraform validate
+terraform -chdir=platform fmt -check
+terraform -chdir=platform validate
 ```
 
-Runtime validation after apply:
+Runtime validation after both applies:
 
 ```bash
 tailscale status
 tailscale ping $(terraform output -raw tailscale_subnet_router_hostname)
-aws eks update-kubeconfig --profile victor --region $(terraform output -raw aws_region) --name $(terraform output -raw cluster_name)
 kubectl get nodes
-kubectl -n tailscale get pods
-kubectl -n argocd get pods,applications
-kubectl -n karpenter get pods
+kubectl -n kube-system get pods -l app.kubernetes.io/name=aws-load-balancer-controller
+kubectl -n kube-system get pods -l app.kubernetes.io/name=external-dns
+kubectl get ingress -A
 kubectl get ec2nodeclass,nodepool
-kubectl get nodepool spark -o yaml
+kubectl -n argocd get pods
 kubectl -n airflow get pods
 kubectl -n kubecost get pods
 kubectl -n spark-operator get pods
-kubectl -n argocd get svc argocd-tailscale
-kubectl -n airflow get svc airflow-tailscale
-kubectl -n kubecost get svc kubecost-tailscale
 ```
 
-Destroy when finished:
+Destroy platform resources before root infrastructure:
 
 ```bash
+terraform -chdir=platform destroy
 terraform destroy
 ```

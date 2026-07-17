@@ -6,24 +6,6 @@ locals_tf="locals.tf"
 outputs_tf="outputs.tf"
 bootstrap_tf="tailscale-bootstrap.tf"
 
-if ! grep -q '^export KUBECONFIG=' "$bootstrap"; then
-  printf 'expected bootstrap to export KUBECONFIG before helm/kubectl commands\n' >&2
-  exit 1
-fi
-
-if ! grep -q -- 'aws eks update-kubeconfig .* --kubeconfig "\$KUBECONFIG"' "$bootstrap"; then
-  printf 'expected aws eks update-kubeconfig to write to explicit KUBECONFIG\n' >&2
-  exit 1
-fi
-
-kubeconfig_line=$(grep -n '^export KUBECONFIG=' "$bootstrap" | cut -d: -f1 | head -n1)
-helm_line=$(grep -n '^helm repo add' "$bootstrap" | cut -d: -f1 | head -n1)
-
-if (( kubeconfig_line >= helm_line )); then
-  printf 'expected KUBECONFIG export before helm commands\n' >&2
-  exit 1
-fi
-
 if ! grep -q 'https://tailscale.com/install.sh' "$bootstrap"; then
   printf 'expected bootstrap to install Tailscale on the subnet router instance\n' >&2
   exit 1
@@ -51,6 +33,11 @@ fi
 
 if grep -q '^export TAILSCALE_SUBNET_ROUTER_AUTH_KEY=' "$bootstrap"; then
   printf 'expected bootstrap to keep the subnet router auth key out of child process environments\n' >&2
+  exit 1
+fi
+
+if grep -Eq 'aws[[:space:]]+eks|awscli|kubectl|helm' "$bootstrap"; then
+  printf 'expected bootstrap script to be subnet-router-only with no EKS/kubectl/helm commands\n' >&2
   exit 1
 fi
 
@@ -89,12 +76,7 @@ if grep -q 'apiServerProxyConfig' "$locals_tf"; then
   exit 1
 fi
 
-if grep -q 'tailscale configure kubeconfig' "$outputs_tf"; then
-  printf 'expected outputs to stop recommending Tailscale API server proxy kubeconfig\n' >&2
-  exit 1
-fi
-
-if ! grep -q 'aws eks update-kubeconfig' "$outputs_tf"; then
-  printf 'expected outputs to recommend AWS EKS kubeconfig over the subnet route\n' >&2
+if grep -q 'tailscale configure kubeconfig\|aws eks update-kubeconfig' "$outputs_tf"; then
+  printf 'expected outputs to avoid kubeconfig command recommendations in the platform Terraform flow\n' >&2
   exit 1
 fi

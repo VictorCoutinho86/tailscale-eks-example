@@ -41,13 +41,15 @@ hcl_block_contains() {
     }
 
     in_block {
-      block = block $0 "\n"
+      normalized_line = $0
+      gsub(/[[:space:]]+/, " ", normalized_line)
+      block = block normalized_line "\n"
       line = $0
       depth += gsub(/\{/, "", line)
       depth -= gsub(/\}/, "", line)
 
       if (depth == 0) {
-        found = block ~ needle
+        found = index(block, needle) > 0
         finished = 1
         in_block = 0
       }
@@ -61,7 +63,7 @@ for provider in kubernetes helm; do
   for provider_needle in \
     'exec' \
     'get-token' \
-    'command[[:space:]]*=[[:space:]]*"aws"'; do
+    'command = "aws"'; do
     if ! hcl_block_contains "$platform_root/providers.tf" "provider \"$provider\"" "$provider_needle"; then
       printf 'expected provider %s to contain %s\n' "$provider" "$provider_needle" >&2
       exit 1
@@ -74,12 +76,29 @@ if ! grep -q 'helm_release' "$platform_root/helm.tf"; then
   exit 1
 fi
 
-for release in aws_load_balancer_controller external_dns argocd airflow kubecost spark_operator karpenter; do
+for release in aws_load_balancer_controller external_dns argocd airflow kubecost spark_operator karpenter karpenter_resources; do
   if ! grep -q "helm_release.*$release\|resource \"helm_release\" \"$release\"" "$platform_root/helm.tf"; then
     printf 'expected helm release %s\n' "$release" >&2
     exit 1
   fi
 done
+
+if ! hcl_block_contains "$platform_root/helm.tf" 'resource "helm_release" "external_dns"' 'name = "extraArgs.aws-zone-type"' || \
+  ! hcl_block_contains "$platform_root/helm.tf" 'resource "helm_release" "external_dns"' 'value = "public"'; then
+  printf 'expected ExternalDNS to filter public Route 53 zones with --aws-zone-type\n' >&2
+  exit 1
+fi
+
+if grep -q 'resource "kubernetes_manifest" "karpenter' "$platform_root/kubernetes.tf"; then
+  printf 'expected Karpenter CRD-backed resources to be installed by Helm, not kubernetes_manifest\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'karpenter.k8s.aws/v1' "$platform_root/charts/karpenter-resources/templates/ec2nodeclass.yaml" || \
+  ! grep -q 'karpenter.sh/v1' "$platform_root/charts/karpenter-resources/templates/nodepools.yaml"; then
+  printf 'expected local Helm chart to define Karpenter CRD-backed resources\n' >&2
+  exit 1
+fi
 
 for hostname in argocd airflow kubecost; do
   if ! grep -q "hostname[[:space:]]*=[[:space:]]*\"${hostname}\." "$platform_root/locals.tf"; then
@@ -89,12 +108,12 @@ for hostname in argocd airflow kubecost; do
 done
 
 for ingress_needle in \
-  'for_each[[:space:]]*=[[:space:]]*local\.platform_ingresses' \
-  'ingress_class_name[[:space:]]*=[[:space:]]*"alb"' \
-  '"alb\.ingress\.kubernetes\.io/scheme"[[:space:]]*=[[:space:]]*"internal"' \
-  'alb\.ingress\.kubernetes\.io/group\.name' \
-  'alb\.ingress\.kubernetes\.io/certificate-arn' \
-  'external-dns\.alpha\.kubernetes\.io/hostname'; do
+  'for_each = local.platform_ingresses' \
+  'ingress_class_name = "alb"' \
+  '"alb.ingress.kubernetes.io/scheme" = "internal"' \
+  '"alb.ingress.kubernetes.io/group.name"' \
+  '"alb.ingress.kubernetes.io/certificate-arn"' \
+  '"external-dns.alpha.kubernetes.io/hostname"'; do
   if ! hcl_block_contains "$platform_root/kubernetes.tf" 'resource "kubernetes_ingress_v1" "platform"' "$ingress_needle"; then
     printf 'expected platform Ingress to contain %s\n' "$ingress_needle" >&2
     exit 1
@@ -106,8 +125,18 @@ if ! grep -q 'attach_aws_lb_controller_policy' "$pod_identity"; then
   exit 1
 fi
 
+if ! grep -q 'module "aws_load_balancer_controller_pod_identity"' "$pod_identity"; then
+  printf 'expected a dedicated AWS Load Balancer Controller Pod Identity module\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'attach_external_dns_policy' "$pod_identity"; then
   printf 'expected ExternalDNS Pod Identity\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'module "external_dns_pod_identity"' "$pod_identity"; then
+  printf 'expected a dedicated ExternalDNS Pod Identity module\n' >&2
   exit 1
 fi
 
@@ -130,8 +159,12 @@ for resource in \
 done
 
 old_path_pattern='apiServerProxyConfig|tailscale\.com/loadBalancerClass|tailscale configure kubeconfig'
-shopt -s nullglob globstar
-for file in ./*.tf templates/*.tftpl platform/**; do
+if ! static_files=$(git ls-files -co --exclude-standard -- '*.tf' 'templates/*.tftpl' 'platform/**'); then
+  printf 'unable to list static-check inputs\n' >&2
+  exit 1
+fi
+
+while IFS= read -r file || [[ -n "$file" ]]; do
   if [[ ! -f "$file" ]]; then
     continue
   fi
@@ -163,7 +196,9 @@ for file in ./*.tf templates/*.tftpl platform/**; do
     printf 'expected obsolete CLI delivery commands to be removed from %s\n' "$file" >&2
     exit 1
   fi
-done
+done <<EOF
+$static_files
+EOF
 
 if grep -q 'module.eks\|module.karpenter' tailscale-bootstrap.tf; then
   printf 'expected subnet router EC2 to be independent of EKS creation\n' >&2
