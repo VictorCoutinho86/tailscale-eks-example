@@ -19,11 +19,23 @@ if ! grep -q 'required_providers' "$platform_root/versions.tf" || ! grep -q 'sou
   exit 1
 fi
 
-provider_block_contains() {
-  local provider_name="$1"
+hcl_block_contains() {
+  local file="$1"
+  local header="$2"
+  local needle="$3"
 
-  awk -v provider_name="$provider_name" '
-    $0 ~ "^[[:space:]]*provider[[:space:]]+\"" provider_name "\"[[:space:]]*\\{" {
+  awk -v header="$header" -v needle="$needle" '
+    function starts_block(line) {
+      sub(/^[[:space:]]*/, "", line)
+      if (substr(line, 1, length(header)) != header) {
+        return 0
+      }
+
+      remainder = substr(line, length(header) + 1)
+      return remainder ~ /^[[:space:]]*\{/
+    }
+
+    !in_block && !finished && starts_block($0) {
       in_block = 1
       depth = 0
     }
@@ -35,20 +47,26 @@ provider_block_contains() {
       depth -= gsub(/\}/, "", line)
 
       if (depth == 0) {
-        found = block ~ /exec/ && block ~ /get-token/ && block ~ /command[[:space:]]*=[[:space:]]*"aws"/
-        exit
+        found = block ~ needle
+        finished = 1
+        in_block = 0
       }
     }
 
-    END { exit(found ? 0 : 1) }
-  ' "$platform_root/providers.tf"
+    END { exit (finished && found ? 0 : 1) }
+  ' "$file"
 }
 
 for provider in kubernetes helm; do
-  if ! provider_block_contains "$provider"; then
-    printf 'expected provider %s to configure aws eks get-token authentication\n' "$provider" >&2
-    exit 1
-  fi
+  for provider_needle in \
+    'exec' \
+    'get-token' \
+    'command[[:space:]]*=[[:space:]]*"aws"'; do
+    if ! hcl_block_contains "$platform_root/providers.tf" "provider \"$provider\"" "$provider_needle"; then
+      printf 'expected provider %s to contain %s\n' "$provider" "$provider_needle" >&2
+      exit 1
+    fi
+  done
 done
 
 if ! grep -q 'helm_release' "$platform_root/helm.tf"; then
@@ -63,16 +81,6 @@ for release in aws_load_balancer_controller external_dns argocd airflow kubecost
   fi
 done
 
-for ingress_requirement in \
-  'resource "kubernetes_ingress_v1" "platform"' \
-  'for_each = local.platform_ingresses' \
-  'ingress_class_name = "alb"'; do
-  if ! grep -F -q -- "$ingress_requirement" "$platform_root/kubernetes.tf"; then
-    printf 'expected Ingress requirement %s\n' "$ingress_requirement" >&2
-    exit 1
-  fi
-done
-
 for hostname in argocd airflow kubecost; do
   if ! grep -q "hostname[[:space:]]*=[[:space:]]*\"${hostname}\." "$platform_root/locals.tf"; then
     printf 'expected %s hostname entry in platform locals\n' "$hostname" >&2
@@ -80,17 +88,15 @@ for hostname in argocd airflow kubecost; do
   fi
 done
 
-if ! grep -E -q -- '"alb\.ingress\.kubernetes\.io/scheme"[[:space:]]*=[[:space:]]*"internal"' "$platform_root/kubernetes.tf"; then
-  printf 'expected the shared ALB scheme annotation to assign internal\n' >&2
-  exit 1
-fi
-
-for annotation in \
-  'alb.ingress.kubernetes.io/group.name' \
-  'alb.ingress.kubernetes.io/certificate-arn' \
-  'external-dns.alpha.kubernetes.io/hostname'; do
-  if ! grep -F -q -- "$annotation" "$platform_root/kubernetes.tf"; then
-    printf 'expected Ingress setting %s\n' "$annotation" >&2
+for ingress_needle in \
+  'for_each[[:space:]]*=[[:space:]]*local\.platform_ingresses' \
+  'ingress_class_name[[:space:]]*=[[:space:]]*"alb"' \
+  '"alb\.ingress\.kubernetes\.io/scheme"[[:space:]]*=[[:space:]]*"internal"' \
+  'alb\.ingress\.kubernetes\.io/group\.name' \
+  'alb\.ingress\.kubernetes\.io/certificate-arn' \
+  'external-dns\.alpha\.kubernetes\.io/hostname'; do
+  if ! hcl_block_contains "$platform_root/kubernetes.tf" 'resource "kubernetes_ingress_v1" "platform"' "$ingress_needle"; then
+    printf 'expected platform Ingress to contain %s\n' "$ingress_needle" >&2
     exit 1
   fi
 done
@@ -124,7 +130,8 @@ for resource in \
 done
 
 old_path_pattern='apiServerProxyConfig|tailscale\.com/loadBalancerClass|tailscale configure kubeconfig'
-for file in ./*.tf templates/*.tftpl platform/*; do
+shopt -s nullglob globstar
+for file in ./*.tf templates/*.tftpl platform/**; do
   if [[ ! -f "$file" ]]; then
     continue
   fi
@@ -139,7 +146,8 @@ for file in ./*.tf templates/*.tftpl platform/*; do
     exit 1
   fi
 
-  case "$file" in
+  relative_file="${file#./}"
+  case "$relative_file" in
     "$bootstrap")
       forbidden_pattern='aws[[:space:]]+eks|awscli|kubectl|helm'
       ;;
