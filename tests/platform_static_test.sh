@@ -55,10 +55,13 @@ for hostname in argocd airflow kubecost; do
   fi
 done
 
+if ! grep -E -q -- '"alb\.ingress\.kubernetes\.io/scheme"[[:space:]]*=[[:space:]]*"internal"' "$platform_root/kubernetes.tf"; then
+  printf 'expected the shared ALB scheme annotation to assign internal\n' >&2
+  exit 1
+fi
+
 for annotation in \
   'alb.ingress.kubernetes.io/group.name' \
-  'alb.ingress.kubernetes.io/scheme' \
-  'internal' \
   'alb.ingress.kubernetes.io/certificate-arn' \
   'external-dns.alpha.kubernetes.io/hostname'; do
   if ! grep -F -q -- "$annotation" "$platform_root/kubernetes.tf"; then

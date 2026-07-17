@@ -86,7 +86,7 @@ if ! grep -q 'alb.ingress.kubernetes.io/group.name' "$platform_root/kubernetes.t
   exit 1
 fi
 
-if ! grep -q 'alb.ingress.kubernetes.io/scheme.*internal' "$platform_root/kubernetes.tf"; then
+if ! grep -E -q '"alb\.ingress\.kubernetes\.io/scheme"[[:space:]]*=[[:space:]]*"internal"' "$platform_root/kubernetes.tf"; then
   printf 'expected the shared ALB to be internal\n' >&2
   exit 1
 fi
@@ -1098,7 +1098,7 @@ rtk terraform -chdir=platform plan -out=platform.tfplan
 rtk terraform -chdir=platform apply platform.tfplan
 ```
 
-Expected: Helm provider reaches the private EKS endpoint over Tailscale and installs the five application releases, AWS Load Balancer Controller, ExternalDNS, and Karpenter without a `localhost:8080` or TLS proxy error.
+Expected: Helm provider reaches the private EKS endpoint over Tailscale and installs seven Helm releases: AWS Load Balancer Controller, ExternalDNS, Argo CD, Airflow, Kubecost, Spark Operator, and Karpenter without a `localhost:8080` or TLS proxy error.
 
 - [ ] **Step 5: Validate Kubernetes, ALB, ACM, and DNS**
 
