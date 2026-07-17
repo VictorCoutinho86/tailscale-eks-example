@@ -7,8 +7,7 @@ export VPC_CIDR="${vpc_cidr}"
 TAILSCALE_SUBNET_ROUTER_AUTH_KEY="${tailscale_subnet_router_auth_key}"
 export TAILSCALE_SUBNET_ROUTER_HOSTNAME="${tailscale_subnet_router_hostname}"
 
-dnf install -y curl-minimal unzip amazon-ssm-agent
-systemctl enable --now amazon-ssm-agent
+dnf install -y curl-minimal unzip
 
 curl -fsSL https://tailscale.com/install.sh | sh
 
@@ -32,7 +31,7 @@ cat >/usr/local/bin/argocd-bootstrap.sh <<'BOOTSTRAP'
 set -euxo pipefail
 
 LOG_FILE=/var/log/argocd-bootstrap.log
-exec > >(tee -a "$LOG_FILE") 2>&1
+exec > >(tee -a "$LOG_FILE" /dev/console) 2>&1
 
 STATE_DIR=/var/lib/argocd-bootstrap
 SUCCESS_FILE="$STATE_DIR/succeeded"
