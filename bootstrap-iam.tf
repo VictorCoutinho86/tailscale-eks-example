@@ -34,6 +34,22 @@ resource "aws_security_group" "bootstrap" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    description = "Allow DNS to VPC Route 53 Resolver for split DNS"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Allow DNS to VPC Route 53 Resolver for split DNS (TCP fallback)"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   tags = merge(local.tags, { Name = "${local.name}-bootstrap" })
 }
 

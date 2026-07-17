@@ -11,6 +11,7 @@ resource "aws_instance" "bootstrap" {
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/bootstrap.sh.tftpl", {
     vpc_cidr                         = var.vpc_cidr
+    vpc_cidr_resolver                = cidrhost(var.vpc_cidr, 2)
     tailscale_subnet_router_auth_key = var.tailscale_subnet_router_auth_key
     tailscale_subnet_router_hostname = local.tailscale_subnet_router_hostname
     cluster_name                     = module.eks.cluster_name

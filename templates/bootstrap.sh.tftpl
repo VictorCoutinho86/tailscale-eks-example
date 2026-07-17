@@ -20,7 +20,7 @@ systemctl enable --now tailscaled
 tailscale up \
   --auth-key="$TAILSCALE_SUBNET_ROUTER_AUTH_KEY" \
   --hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME" \
-  --advertise-routes="$VPC_CIDR" \
+  --advertise-routes="$VPC_CIDR,${vpc_cidr_resolver}/32" \
   --accept-dns=false
 unset TAILSCALE_SUBNET_ROUTER_AUTH_KEY
 

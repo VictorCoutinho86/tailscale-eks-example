@@ -46,7 +46,7 @@ if ! grep -q -- '--hostname="\$TAILSCALE_SUBNET_ROUTER_HOSTNAME"' "$bootstrap"; 
   exit 1
 fi
 
-if ! grep -q -- '--advertise-routes="\$VPC_CIDR"' "$bootstrap"; then
+if ! grep -q -- '--advertise-routes="\$VPC_CIDR,${vpc_cidr_resolver}/32"' "$bootstrap"; then
   printf 'expected bootstrap to advertise the VPC CIDR as a Tailscale subnet route\n' >&2
   exit 1
 fi
