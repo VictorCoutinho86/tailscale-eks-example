@@ -74,7 +74,7 @@ if ! grep -q 'helm_release' "$platform_root/helm.tf"; then
   exit 1
 fi
 
-for release in aws_load_balancer_controller external_dns argocd airflow kubecost; do
+for release in aws_load_balancer_controller external_dns argocd airflow kubecost spark_operator karpenter; do
   if ! grep -q "helm_release.*$release\|resource \"helm_release\" \"$release\"" "$platform_root/helm.tf"; then
     printf 'expected helm release %s\n' "$release" >&2
     exit 1
