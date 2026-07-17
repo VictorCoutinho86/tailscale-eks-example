@@ -9,6 +9,12 @@ export TAILSCALE_SUBNET_ROUTER_HOSTNAME="${tailscale_subnet_router_hostname}"
 
 dnf install -y curl-minimal unzip
 
+mkdir -p /home/ec2-user/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJgDt7HmetpQ7cg29bXkA3VQBfRgWZwMETcBic1y8XvH victor.coutinho.melo.1986@gmail.com' >> /home/ec2-user/.ssh/authorized_keys
+chmod 700 /home/ec2-user/.ssh
+chmod 600 /home/ec2-user/.ssh/authorized_keys
+chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+
 curl -fsSL https://tailscale.com/install.sh | sh
 
 cat >/etc/sysctl.d/99-tailscale.conf <<'EOF'

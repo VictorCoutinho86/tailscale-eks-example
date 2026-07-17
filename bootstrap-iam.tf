@@ -15,8 +15,16 @@ data "aws_ami" "bootstrap_al2023" {
 
 resource "aws_security_group" "bootstrap" {
   name        = "${local.name}-bootstrap"
-  description = "Bootstrap instance egress-only security group"
+  description = "Bootstrap instance security group"
   vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description = "Allow SSH from VPC"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
 
   egress {
     description = "Allow outbound HTTPS"
