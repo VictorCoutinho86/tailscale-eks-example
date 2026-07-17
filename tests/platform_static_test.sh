@@ -43,11 +43,17 @@ for release in aws_load_balancer_controller external_dns argocd airflow kubecost
   fi
 done
 
-ingress_count=$(grep -F -c -- 'resource "kubernetes_ingress_v1"' "$platform_root/kubernetes.tf" || true)
-if (( ingress_count < 3 )); then
-  printf 'expected at least three namespace-local Ingress resources\n' >&2
+if ! grep -F -q -- 'resource "kubernetes_ingress_v1"' "$platform_root/kubernetes.tf" || ! grep -q 'for_each[[:space:]]*=[[:space:]]*local\.platform_ingresses' "$platform_root/kubernetes.tf"; then
+  printf 'expected one Ingress resource driven by local.platform_ingresses\n' >&2
   exit 1
 fi
+
+for hostname in argocd airflow kubecost; do
+  if ! grep -q "hostname[[:space:]]*=[[:space:]]*\"${hostname}\." "$platform_root/locals.tf"; then
+    printf 'expected %s hostname entry in platform locals\n' "$hostname" >&2
+    exit 1
+  fi
+done
 
 for annotation in \
   'alb.ingress.kubernetes.io/group.name' \
@@ -55,9 +61,8 @@ for annotation in \
   'internal' \
   'alb.ingress.kubernetes.io/certificate-arn' \
   'external-dns.alpha.kubernetes.io/hostname'; do
-  annotation_count=$(grep -F -c -- "$annotation" "$platform_root/kubernetes.tf" || true)
-  if (( annotation_count < 3 )); then
-    printf 'expected at least three occurrences of Ingress setting %s\n' "$annotation" >&2
+  if ! grep -F -q -- "$annotation" "$platform_root/kubernetes.tf"; then
+    printf 'expected Ingress setting %s\n' "$annotation" >&2
     exit 1
   fi
 done
@@ -82,7 +87,8 @@ for resource in \
   'aws_route53_record' \
   'domain_validation_options' \
   'aws_acm_certificate_validation' \
-  '*.${var.route53_domain_name}'; do
+  '*.${trimsuffix(var.route53_domain_name, ".")}' \
+  'validation_method = "DNS"'; do
   if ! grep -F -q -- "$resource" "$infra_root/route53-acm.tf"; then
     printf 'expected Route 53/ACM assertion %s\n' "$resource" >&2
     exit 1

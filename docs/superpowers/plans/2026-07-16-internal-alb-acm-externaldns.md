@@ -852,7 +852,7 @@ rtk terraform -chdir=platform validate
 rtk terraform -chdir=platform plan
 ```
 
-Expected: the plan contains the six Helm releases and no provider connection error, provided the EKS endpoint is reachable over the approved Tailscale route.
+Expected: the plan contains the seven Helm releases and no provider connection error, provided the EKS endpoint is reachable over the approved Tailscale route.
 
 - [ ] **Step 5: Commit Helm releases and values**
 
