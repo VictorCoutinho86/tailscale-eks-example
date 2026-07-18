@@ -25,14 +25,49 @@ require_match 'var\.aws_region' argocd.tf
 require_match 'kubecost_athena_policy_statements' locals.tf
 require_match 'module "kubecost_pod_identity"' pod-identity.tf
 require_match 'service_account = "kubecost-aws"' pod-identity.tf
-require_match 'athena:\*' locals.tf
-require_match 'glue:GetDatabase' locals.tf
-require_match 'glue:GetTable' locals.tf
-require_match 's3:GetObject' locals.tf
-require_match 's3:PutObject' locals.tf
-require_match 'kubecostAthenaDatabase' argocd.tf
-require_match 'kubecostAthenaQueryResultsBucket' charts/argocd-root-application/templates/application.yaml
-require_match 'kubecostAthenaDatabase' charts/argocd-root-application/templates/application.yaml
+
+for bucket in kubecost_cur_source_bucket kubecost_athena_query_results_bucket; do
+  require_match "var\\.${bucket}" locals.tf
+done
+
+for action in \
+  'athena:\*' \
+  'glue:GetDatabase' \
+  'glue:GetTable' \
+  'glue:GetPartition' \
+  'glue:GetUserDefinedFunction' \
+  'glue:BatchGetPartition' \
+  's3:GetBucketLocation' \
+  's3:ListBucket' \
+  's3:GetObject' \
+  's3:GetObjectVersion' \
+  's3:ListBucketMultipartUploads' \
+  's3:AbortMultipartUpload' \
+  's3:ListMultipartUploadParts' \
+  's3:PutObject'; do
+  require_match "$action" locals.tf
+done
+
+require_match 'attach_custom_policy[[:space:]]*=[[:space:]]*true' pod-identity.tf
+require_match 'policy_statements[[:space:]]*=[[:space:]]*local\.kubecost_athena_policy_statements' pod-identity.tf
+require_match 'namespace[[:space:]]*=[[:space:]]*"kubecost"' pod-identity.tf
+
+require_match 'kubecostAthenaAccountId[[:space:]]*=[[:space:]]*data\.aws_caller_identity\.current\.account_id' argocd.tf
+require_match 'kubecostAthenaDatabase[[:space:]]*=[[:space:]]*var\.kubecost_athena_database' argocd.tf
+require_match 'kubecostAthenaTable[[:space:]]*=[[:space:]]*var\.kubecost_athena_table' argocd.tf
+require_match 'kubecostAthenaQueryResultsBucket[[:space:]]*=[[:space:]]*var\.kubecost_athena_query_results_bucket' argocd.tf
+require_match 'kubecostAthenaWorkgroup[[:space:]]*=[[:space:]]*var\.kubecost_athena_workgroup' argocd.tf
+
+for parameter in \
+  kubecostAthenaAccountId \
+  kubecostAthenaDatabase \
+  kubecostAthenaTable \
+  kubecostAthenaQueryResultsBucket \
+  kubecostAthenaWorkgroup; do
+  require_match "name:[[:space:]]*${parameter}" charts/argocd-root-application/templates/application.yaml
+  require_match "\\.Values\\.${parameter}" charts/argocd-root-application/templates/application.yaml
+done
+
 require_match 'cloudIntegrationJSON' gitops/root/templates/applications.yaml
 require_match 'kubecost-aws' gitops/root/templates/applications.yaml
 require_match 'cloudCost:' gitops/root/templates/applications.yaml
