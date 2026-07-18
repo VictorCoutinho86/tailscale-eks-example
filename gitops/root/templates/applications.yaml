@@ -91,7 +91,7 @@ spec:
             name: kubecost-aws
           cloudCost:
             serviceAccountName: kubecost-aws
-            cloudIntegrationJSON: {{ dict "aws" (dict "athena" (list (dict "bucket" (printf "s3://%s" $.Values.kubecostAthenaQueryResultsBucket) "region" $.Values.global.awsRegion "database" $.Values.kubecostAthenaDatabase "table" $.Values.kubecostAthenaTable "workgroup" $.Values.kubecostAthenaWorkgroup "account" $.Values.kubecostAthenaAccountId))) | toJson | quote }}
+            cloudIntegrationJSON: {{ dict "aws" (dict "athena" (list (dict "bucket" (printf "s3://%s" $.Values.global.kubecostAthenaQueryResultsBucket) "region" $.Values.global.awsRegion "database" $.Values.global.kubecostAthenaDatabase "table" $.Values.global.kubecostAthenaTable "workgroup" $.Values.global.kubecostAthenaWorkgroup "account" $.Values.global.kubecostAthenaAccountId))) | toJson | quote }}
 {{ end }}
   destination:
     server: https://kubernetes.default.svc
