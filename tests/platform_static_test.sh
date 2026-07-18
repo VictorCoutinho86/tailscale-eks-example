@@ -81,8 +81,8 @@ if ! grep -q 'route53_domain_name' "$variables" || ! grep -q 'platform_certifica
   exit 1
 fi
 
-if ! grep -A4 'variable "default_node_count"' "$variables" | grep -q 'default     = 4'; then
-  printf 'expected default EKS node group count to be 4\n' >&2
+if ! grep -A4 'variable "default_node_count"' "$variables" | grep -q 'default     = 3'; then
+  printf 'expected default EKS node group count to be 3\n' >&2
   exit 1
 fi
 
@@ -180,6 +180,35 @@ if ! grep -R -q 'useHelmHooks: false' gitops/apps/airflow; then
   exit 1
 fi
 
+if ! grep -q 'argocdAdminPassword.*var.argocd_admin_password' argocd.tf; then
+  printf 'expected the root Application values to receive argocd_admin_password\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'Values.argocdAdminPassword' gitops/root/templates/applications.yaml || \
+  ! grep -q 'createUserJob:' gitops/root/templates/applications.yaml || \
+  ! grep -q 'defaultUser:' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow to use the shared Argo CD admin password\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'AIRFLOW__WEBSERVER__EXPOSE_CONFIG' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow webserver configuration exposure to be enabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'airflow_ebs_cleanup_policy_statements' locals.tf || \
+  ! grep -q 'ec2:DescribeVolumes' locals.tf || \
+  ! grep -q 'ec2:DeleteVolume' locals.tf; then
+  printf 'expected default EBS cleanup permissions for Airflow tasks\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'local.airflow_ebs_cleanup_policy_statements' pod-identity.tf; then
+  printf 'expected Airflow Pod Identity to include default EBS cleanup permissions\n' >&2
+  exit 1
+fi
+
 if grep -q 'variable "public_subnet_count"' variables.tf || grep -q 'public_subnet_count' locals.tf; then
   printf 'expected public_subnet_count to be removed\n' >&2
   exit 1
@@ -261,6 +290,36 @@ if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | g
   exit 1
 fi
 
+if ! grep -q 'eq $app.name "spark-operator"' gitops/root/templates/applications.yaml || \
+  ! grep -q 'jobNamespaces:' gitops/root/templates/applications.yaml || \
+  ! grep -q 'global.sparkWorkloadNamespace' gitops/root/templates/applications.yaml; then
+  printf 'expected Spark Operator to watch the configured Spark workload namespace\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'karpenter.k8s.aws/instance-hypervisor' gitops/apps/karpenter-resources/chart/templates/nodepools.yaml; then
+  printf 'expected Spark NodePool to require Nitro instances for NVMe compatibility\n' >&2
+  exit 1
+fi
+
+if grep -q 'karpenter.k8s.aws/instance-local-nvme' gitops/apps/karpenter-resources/chart/templates/nodepools.yaml; then
+  printf 'expected Spark NodePool not to require local NVMe storage\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'nodes: "90%"' gitops/apps/karpenter-resources/chart/templates/nodepools.yaml || \
+  ! grep -q '"Empty"' gitops/apps/karpenter-resources/chart/templates/nodepools.yaml || \
+  ! grep -q '"Underutilized"' gitops/apps/karpenter-resources/chart/templates/nodepools.yaml; then
+  printf 'expected Spark NodePool to allow 90 percent disruption for idle nodes\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'resources: \["pods"\]' gitops/base/templates/rbac.yaml || \
+  ! grep -q 'verbs: \["get", "list", "watch", "patch"\]' gitops/base/templates/rbac.yaml; then
+  printf 'expected airflow-task to patch Spark driver pods\n' >&2
+  exit 1
+fi
+
 if grep -R -q 'bitnami-labs.github.io\|kubecost.github.io/cost-analyzer' gitops; then
   printf 'expected discontinued chart repositories to be removed from gitops tree\n' >&2
   exit 1
@@ -271,8 +330,8 @@ if ! grep -q 'name: kubecost-frontend' gitops/base/templates/ingresses.yaml; the
   exit 1
 fi
 
-if ! grep -A2 'networkCosts:' gitops/apps/kubecost/values.yaml | grep -q 'enabled: false'; then
-  printf 'expected kubecost network-costs daemonset to be disabled on small nodes\n' >&2
+if ! grep -A2 'networkCosts:' gitops/apps/kubecost/values.yaml | grep -q 'enabled: true'; then
+  printf 'expected kubecost network-costs daemonset to be enabled\n' >&2
   exit 1
 fi
 
