@@ -70,6 +70,32 @@ variable "default_node_capacity_type" {
   }
 }
 
+variable "kubecost_athena_database" {
+  description = "Existing Glue/Athena database containing the AWS CUR table."
+  type        = string
+}
+
+variable "kubecost_athena_table" {
+  description = "Existing Glue/Athena table containing the AWS CUR data."
+  type        = string
+}
+
+variable "kubecost_athena_query_results_bucket" {
+  description = "Existing S3 bucket used for Athena query results."
+  type        = string
+}
+
+variable "kubecost_cur_source_bucket" {
+  description = "Existing S3 bucket containing the AWS CUR objects."
+  type        = string
+}
+
+variable "kubecost_athena_workgroup" {
+  description = "Athena workgroup used for Kubecost CUR queries."
+  type        = string
+  default     = "Primary"
+}
+
 variable "default_node_count" {
   description = "Fixed size for the default EKS managed node group."
   type        = number
