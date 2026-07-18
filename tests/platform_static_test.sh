@@ -192,6 +192,30 @@ if ! grep -q 'valuesObject:' charts/argocd-root-application/templates/applicatio
   exit 1
 fi
 
+if ! grep -A25 '^      parameters:' charts/argocd-root-application/templates/application.yaml | grep -q 'name: global.clusterName' || \
+  ! grep -A25 '^      parameters:' charts/argocd-root-application/templates/application.yaml | grep -q 'name: global.airflowLogsBucket'; then
+  printf 'expected non-secret global Helm parameters to remain in the root Application\n' >&2
+  exit 1
+fi
+
+if ! command -v helm >/dev/null 2>&1; then
+  printf 'expected local helm binary for Airflow password transport regression coverage\n' >&2
+  exit 1
+fi
+
+if ! rendered_application=$(helm template argocd-root-application charts/argocd-root-application \
+  --values charts/argocd-root-application/values.yaml \
+  --set-string 'argocdAdminPassword=alpha\,beta'); then
+  printf 'expected intermediate root Application chart to render with a comma-containing password\n' >&2
+  exit 1
+fi
+
+if ! grep -A1 '^      valuesObject:' <<<"$rendered_application" | \
+  grep -q '^        argocdAdminPassword: "alpha,beta"$'; then
+  printf 'expected valuesObject to preserve the comma-containing Airflow password\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'Values.argocdAdminPassword' gitops/root/templates/applications.yaml || \
   ! grep -q 'createUserJob:' gitops/root/templates/applications.yaml || \
   ! grep -q 'defaultUser:' gitops/root/templates/applications.yaml; then
