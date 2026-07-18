@@ -9,3 +9,4 @@ karpenterQueueName: tailscale-eks-example
 karpenterNodeRoleName: tailscale-eks-example-karpenter
 sparkWorkloadNamespace: spark-jobs
 airflowLogsBucket: example-airflow-logs
+argocdAdminPassword: ""

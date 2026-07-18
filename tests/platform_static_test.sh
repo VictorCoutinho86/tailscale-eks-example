@@ -185,6 +185,12 @@ if ! grep -q 'argocdAdminPassword.*var.argocd_admin_password' argocd.tf; then
   exit 1
 fi
 
+if ! grep -q 'name: argocdAdminPassword' charts/argocd-root-application/templates/application.yaml || \
+  ! grep -q 'value: {{ .Values.argocdAdminPassword | quote }}' charts/argocd-root-application/templates/application.yaml; then
+  printf 'expected the intermediate root Application chart to forward argocdAdminPassword\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'Values.argocdAdminPassword' gitops/root/templates/applications.yaml || \
   ! grep -q 'createUserJob:' gitops/root/templates/applications.yaml || \
   ! grep -q 'defaultUser:' gitops/root/templates/applications.yaml; then
