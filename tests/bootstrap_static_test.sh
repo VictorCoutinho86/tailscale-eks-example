@@ -98,3 +98,18 @@ for forbidden in \
     exit 1
   fi
 done
+
+if ! grep -q 'MASQUERADE' "$bootstrap"; then
+  printf 'expected bootstrap template to configure NAT masquerade\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'nat-masquerade.service' "$bootstrap"; then
+  printf 'expected bootstrap template to persist NAT masquerade via systemd\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'protocol    = "-1"' bootstrap-iam.tf; then
+  printf 'expected bootstrap security group to allow forwarded traffic\n' >&2
+  exit 1
+fi

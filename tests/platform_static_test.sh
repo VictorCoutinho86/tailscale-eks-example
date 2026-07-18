@@ -275,3 +275,68 @@ if ! grep -A2 'networkCosts:' gitops/apps/kubecost/values.yaml | grep -q 'enable
   printf 'expected kubecost network-costs daemonset to be disabled on small nodes\n' >&2
   exit 1
 fi
+
+if ! grep -q 'cidrsubnet(var.vpc_cidr, 4, index + 1)' locals.tf; then
+  printf 'expected private /20 subnets via cidrsubnet newbits 4 netnum index+1\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'private_subnets = local.private_subnets' network.tf; then
+  printf 'expected VPC module to create private subnets\n' >&2
+  exit 1
+fi
+
+if ! grep -A3 'private_subnet_tags' network.tf | grep -q 'kubernetes.io/role/internal-elb'; then
+  printf 'expected internal-elb tag on private subnets\n' >&2
+  exit 1
+fi
+
+if ! grep -A3 'private_subnet_tags' network.tf | grep -q 'karpenter.sh/discovery'; then
+  printf 'expected karpenter discovery tag on private subnets\n' >&2
+  exit 1
+fi
+
+if grep -A3 'public_subnet_tags' network.tf | grep -q 'internal-elb\|karpenter.sh/discovery'; then
+  printf 'expected internal-elb and karpenter discovery tags removed from public subnets\n' >&2
+  exit 1
+fi
+
+if grep -q 'enable_nat_gateway = true' network.tf; then
+  printf 'expected no AWS NAT Gateway (subnet-router is the NAT instance)\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'resource "aws_route" "private_nat_instance"' network.tf; then
+  printf 'expected private default route through the subnet-router ENI\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'network_interface_id   = aws_instance.bootstrap\[0\].primary_network_interface_id' network.tf; then
+  printf 'expected private default route to target the bootstrap primary ENI\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'route_table_ids = module.vpc.private_route_table_ids' network.tf; then
+  printf 'expected S3 gateway endpoint attached to private route tables\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'source_dest_check = false' tailscale-bootstrap.tf; then
+  printf 'expected source_dest_check=false on the NAT instance\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'subnet_ids               = module.vpc.private_subnets' eks.tf; then
+  printf 'expected EKS subnet_ids to use private subnets\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'control_plane_subnet_ids = module.vpc.public_subnets' eks.tf; then
+  printf 'expected EKS control plane to stay on public subnets\n' >&2
+  exit 1
+fi
+
+if ! grep -q '      subnet_ids = module.vpc.private_subnets' eks.tf; then
+  printf 'expected default node group to use private subnets\n' >&2
+  exit 1
+fi
