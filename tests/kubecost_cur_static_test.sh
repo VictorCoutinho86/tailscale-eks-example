@@ -35,11 +35,11 @@ require_adjacent() {
 }
 
 for variable in \
-  'variable "kubecost_athena_database"' \
-  'variable "kubecost_athena_table"' \
-  'variable "kubecost_athena_query_results_bucket"' \
-  'variable "kubecost_cur_source_bucket"' \
-  'variable "kubecost_athena_workgroup"'; do
+  'variable "kubecost_athena_database" {' \
+  'variable "kubecost_athena_table" {' \
+  'variable "kubecost_athena_query_results_bucket" {' \
+  'variable "kubecost_cur_source_bucket" {' \
+  'variable "kubecost_athena_workgroup" {'; do
   require_fixed_match "$variable" variables.tf
 done
 
@@ -75,11 +75,11 @@ require_match 'attach_custom_policy[[:space:]]*=[[:space:]]*true' pod-identity.t
 require_match 'policy_statements[[:space:]]*=[[:space:]]*local\.kubecost_athena_policy_statements' pod-identity.tf
 require_match 'namespace[[:space:]]*=[[:space:]]*"kubecost"' pod-identity.tf
 
-require_match '^[[:space:]]*kubecostAthenaAccountId[[:space:]]*=[[:space:]]*data\.aws_caller_identity\.current\.account_id' argocd.tf
-require_match '^[[:space:]]*kubecostAthenaDatabase[[:space:]]*=[[:space:]]*var\.kubecost_athena_database' argocd.tf
-require_match '^[[:space:]]*kubecostAthenaTable[[:space:]]*=[[:space:]]*var\.kubecost_athena_table' argocd.tf
-require_match '^[[:space:]]*kubecostAthenaQueryResultsBucket[[:space:]]*=[[:space:]]*var\.kubecost_athena_query_results_bucket' argocd.tf
-require_match '^[[:space:]]*kubecostAthenaWorkgroup[[:space:]]*=[[:space:]]*var\.kubecost_athena_workgroup' argocd.tf
+require_match '^[[:space:]]*kubecostAthenaAccountId[[:space:]]*=[[:space:]]*data\.aws_caller_identity\.current\.account_id[[:space:]]*$' argocd.tf
+require_match '^[[:space:]]*kubecostAthenaDatabase[[:space:]]*=[[:space:]]*var\.kubecost_athena_database[[:space:]]*$' argocd.tf
+require_match '^[[:space:]]*kubecostAthenaTable[[:space:]]*=[[:space:]]*var\.kubecost_athena_table[[:space:]]*$' argocd.tf
+require_match '^[[:space:]]*kubecostAthenaQueryResultsBucket[[:space:]]*=[[:space:]]*var\.kubecost_athena_query_results_bucket[[:space:]]*$' argocd.tf
+require_match '^[[:space:]]*kubecostAthenaWorkgroup[[:space:]]*=[[:space:]]*var\.kubecost_athena_workgroup[[:space:]]*$' argocd.tf
 
 for parameter in \
   kubecostAthenaAccountId \
