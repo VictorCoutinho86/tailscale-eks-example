@@ -6,7 +6,8 @@ module "vpc" {
   cidr = var.vpc_cidr
   azs  = local.azs
 
-  public_subnets = local.public_subnets
+  public_subnets  = local.public_subnets
+  private_subnets = local.private_subnets
 
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -16,7 +17,10 @@ module "vpc" {
   map_public_ip_on_launch = true
 
   public_subnet_tags = {
-    "kubernetes.io/role/elb"          = "1"
+    "kubernetes.io/role/elb" = "1"
+  }
+
+  private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = "1"
     "karpenter.sh/discovery"          = local.name
   }
@@ -33,10 +37,18 @@ module "vpc_endpoints" {
     s3 = {
       service         = "s3"
       service_type    = "Gateway"
-      route_table_ids = module.vpc.public_route_table_ids
+      route_table_ids = module.vpc.private_route_table_ids
       tags            = { Name = "${local.name}-s3-endpoint" }
     }
   }
 
   tags = local.tags
+}
+
+resource "aws_route" "private_nat_instance" {
+  count = var.enable_bootstrap_instance ? length(module.vpc.private_route_table_ids) : 0
+
+  route_table_id         = module.vpc.private_route_table_ids[count.index]
+  destination_cidr_block = "0.0.0.0/0"
+  network_interface_id   = aws_instance.bootstrap[0].primary_network_interface_id
 }
