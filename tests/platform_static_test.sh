@@ -321,7 +321,7 @@ if ! grep -q 'route_table_ids = module.vpc.private_route_table_ids' network.tf; 
   exit 1
 fi
 
-if ! grep -q 'source_dest_check = false' tailscale-bootstrap.tf; then
+if ! grep -q 'source_dest_check *= *false' tailscale-bootstrap.tf; then
   printf 'expected source_dest_check=false on the NAT instance\n' >&2
   exit 1
 fi
