@@ -39,6 +39,19 @@ locals {
     }
   ]
 
+  airflow_ebs_cleanup_policy_statements = [
+    {
+      sid       = "AirflowCleanupDescribeEbsVolumes"
+      actions   = ["ec2:DescribeVolumes"]
+      resources = ["*"]
+    },
+    {
+      sid       = "AirflowCleanupDeleteEbsVolumes"
+      actions   = ["ec2:DeleteVolume"]
+      resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"]
+    }
+  ]
+
   tags = merge(
     {
       Project     = local.name

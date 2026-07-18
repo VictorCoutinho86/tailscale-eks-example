@@ -59,6 +59,7 @@ module "airflow_task_pod_identity" {
   attach_custom_policy = true
   policy_statements = concat(
     var.airflow_task_policy_statements,
+    local.airflow_ebs_cleanup_policy_statements,
     local.airflow_s3_log_policy_statements,
   )
 
