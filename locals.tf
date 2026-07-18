@@ -55,20 +55,14 @@ locals {
   kubecost_athena_policy_statements = concat(
     [
       {
-        sid = "KubecostAthenaQueryAccess"
+        sid = "KubecostAthenaWorkgroupAccess"
         actions = [
           "athena:BatchGetQueryExecution",
           "athena:GetQueryExecution",
           "athena:GetQueryResults",
           "athena:GetQueryResultsStream",
-          "athena:StopQueryExecution",
-        ]
-        resources = ["*"]
-      },
-      {
-        sid = "KubecostAthenaWorkgroupAccess"
-        actions = [
           "athena:StartQueryExecution",
+          "athena:StopQueryExecution",
           "athena:GetWorkGroup",
         ]
         resources = [
