@@ -40,8 +40,9 @@ require_block_match() {
   local marker=$1
   local pattern=$2
   local file=$3
+  local exact=${4:-false}
 
-  if ! awk -v marker="$marker" -v pattern="$pattern" '
+  if ! awk -v marker="$marker" -v pattern="$pattern" -v exact="$exact" '
     BEGIN {
       found_marker = 0
       found_match = 0
@@ -59,7 +60,14 @@ require_block_match() {
         next
       }
 
-      if (index($0, pattern)) {
+      if (exact == "true") {
+        line = $0
+        sub(/^[[:space:]]*/, "", line)
+        sub(/[[:space:]]*$/, "", line)
+        if (line == pattern) {
+          found_match = 1
+        }
+      } else if (index($0, pattern)) {
         found_match = 1
       }
 
@@ -165,12 +173,15 @@ done
 pod_identity_block='module "kubecost_pod_identity" {'
 for setting in \
   'attach_custom_policy = true' \
-  'policy_statements' \
-  'local.kubecost_athena_policy_statements' \
   'namespace = "kubecost"' \
   'service_account = "kubecost-aws"'; do
   require_block_match "$pod_identity_block" "$setting" pod-identity.tf
 done
+require_block_match \
+  "$pod_identity_block" \
+  'policy_statements    = local.kubecost_athena_policy_statements' \
+  pod-identity.tf \
+  true
 
 require_match '^[[:space:]]*kubecostAthenaAccountId[[:space:]]*=[[:space:]]*data\.aws_caller_identity\.current\.account_id[[:space:]]*$' argocd.tf
 require_match '^[[:space:]]*kubecostAthenaDatabase[[:space:]]*=[[:space:]]*var\.kubecost_athena_database[[:space:]]*$' argocd.tf
