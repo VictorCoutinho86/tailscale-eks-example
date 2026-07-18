@@ -37,6 +37,16 @@ spec:
           value: {{ .Values.sparkWorkloadNamespace | quote }}
         - name: global.airflowLogsBucket
           value: {{ .Values.airflowLogsBucket | quote }}
+        - name: global.kubecostAthenaAccountId
+          value: {{ .Values.kubecostAthenaAccountId | quote }}
+        - name: global.kubecostAthenaDatabase
+          value: {{ .Values.kubecostAthenaDatabase | quote }}
+        - name: global.kubecostAthenaTable
+          value: {{ .Values.kubecostAthenaTable | quote }}
+        - name: global.kubecostAthenaQueryResultsBucket
+          value: {{ .Values.kubecostAthenaQueryResultsBucket | quote }}
+        - name: global.kubecostAthenaWorkgroup
+          value: {{ .Values.kubecostAthenaWorkgroup | quote }}
       valuesObject:
         argocdAdminPassword: {{ .Values.argocdAdminPassword | quote }}
   destination:

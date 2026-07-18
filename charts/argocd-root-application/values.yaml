@@ -9,4 +9,9 @@ karpenterQueueName: tailscale-eks-example
 karpenterNodeRoleName: tailscale-eks-example-karpenter
 sparkWorkloadNamespace: spark-jobs
 airflowLogsBucket: example-airflow-logs
+kubecostAthenaAccountId: "000000000000"
+kubecostAthenaDatabase: athenacurcfn_example
+kubecostAthenaTable: cur_example
+kubecostAthenaQueryResultsBucket: aws-athena-query-results-example
+kubecostAthenaWorkgroup: Primary
 argocdAdminPassword: ""
