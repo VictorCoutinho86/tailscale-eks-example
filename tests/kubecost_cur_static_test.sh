@@ -11,6 +11,17 @@ require_match() {
   fi
 }
 
+require_adjacent() {
+  local name=$1
+  local value=$2
+  local file=$3
+
+  if ! grep -A1 -E "name:[[:space:]]*${name}" "$file" | grep -Eq "\\.Values\\.${value}"; then
+    printf 'expected name %s adjacent to .Values.%s in %s\n' "$name" "$value" "$file" >&2
+    exit 1
+  fi
+}
+
 for variable in \
   'variable "kubecost_athena_database"' \
   'variable "kubecost_athena_table"' \
@@ -64,8 +75,7 @@ for parameter in \
   kubecostAthenaTable \
   kubecostAthenaQueryResultsBucket \
   kubecostAthenaWorkgroup; do
-  require_match "name:[[:space:]]*${parameter}" charts/argocd-root-application/templates/application.yaml
-  require_match "\\.Values\\.${parameter}" charts/argocd-root-application/templates/application.yaml
+  require_adjacent "$parameter" "$parameter" charts/argocd-root-application/templates/application.yaml
 done
 
 require_match 'cloudIntegrationJSON' gitops/root/templates/applications.yaml
