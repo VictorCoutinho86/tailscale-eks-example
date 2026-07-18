@@ -62,7 +62,7 @@ spec:
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: default
+        name: spark
       expireAfter: 720h
   limits:
     cpu: "1000"
