@@ -65,7 +65,7 @@ variable "enable_bootstrap_instance" {
 variable "enable_argocd_bootstrap" {
   description = "Install Argo CD and the root Argo CD Application from Terraform after the Tailscale subnet route is approved."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "argocd_admin_password" {
@@ -96,6 +96,11 @@ variable "airflow_task_policy_statements" {
   description = "Custom IAM policy statements for Airflow task pods. Keep empty until concrete AWS resource ARNs are known."
   type        = list(any)
   default     = []
+}
+
+variable "airflow_logs_bucket" {
+  description = "Existing S3 bucket where Airflow stores remote task logs under the airflow/logs prefix."
+  type        = string
 }
 
 variable "spark_workload_policy_statements" {

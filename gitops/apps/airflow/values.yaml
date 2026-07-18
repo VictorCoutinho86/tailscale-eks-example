@@ -55,6 +55,10 @@ airflow:
     resources:
       limits:
         memory: 900Mi
+    kubernetes:
+      serviceAccount:
+        create: false
+        name: airflow-task
     celery:
       persistence:
         enabled: false

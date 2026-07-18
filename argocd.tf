@@ -50,6 +50,7 @@ resource "helm_release" "argocd_root_application" {
     karpenterQueueName     = module.karpenter.queue_name
     karpenterNodeRoleName  = module.karpenter.node_iam_role_name
     sparkWorkloadNamespace = var.spark_workload_namespace
+    airflowLogsBucket      = var.airflow_logs_bucket
   })]
 
   depends_on = [helm_release.argocd]

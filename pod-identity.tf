@@ -56,14 +56,37 @@ module "airflow_task_pod_identity" {
 
   name = "${local.name}-airflow-task"
 
-  attach_custom_policy = length(var.airflow_task_policy_statements) > 0
-  policy_statements    = var.airflow_task_policy_statements
+  attach_custom_policy = true
+  policy_statements = concat(
+    var.airflow_task_policy_statements,
+    local.airflow_s3_log_policy_statements,
+  )
 
   associations = {
     airflow_task = {
       cluster_name    = local.name
       namespace       = "airflow"
       service_account = "airflow-task"
+    }
+    airflow_api_server = {
+      cluster_name    = local.name
+      namespace       = "airflow"
+      service_account = "airflow-api-server"
+    }
+    airflow_scheduler = {
+      cluster_name    = local.name
+      namespace       = "airflow"
+      service_account = "airflow-scheduler"
+    }
+    airflow_dag_processor = {
+      cluster_name    = local.name
+      namespace       = "airflow"
+      service_account = "airflow-dag-processor"
+    }
+    airflow_triggerer = {
+      cluster_name    = local.name
+      namespace       = "airflow"
+      service_account = "airflow-triggerer"
     }
   }
 

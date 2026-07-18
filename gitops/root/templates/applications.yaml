@@ -67,6 +67,13 @@ spec:
         nodeRoleName: {{ $.Values.global.karpenterNodeRoleName | quote }}
         sparkNodeLabels:
           workload: spark
+{{ else if eq $app.name "airflow" }}
+        airflow:
+          config:
+            logging:
+              remote_logging: "True"
+              remote_base_log_folder: {{ printf "s3://%s/airflow/logs" $.Values.global.airflowLogsBucket | quote }}
+              remote_log_conn_id: aws_default
 {{ else if eq $app.name "kubecost" }}
         kubecost:
           global:
