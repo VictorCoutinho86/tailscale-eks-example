@@ -11,7 +11,7 @@ module "eks" {
   enable_cluster_creator_admin_permissions = false
 
   vpc_id                   = module.vpc.vpc_id
-  subnet_ids               = module.vpc.public_subnets
+  subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.public_subnets
 
   addons = {
@@ -69,7 +69,7 @@ module "eks" {
       max_size     = var.default_node_count
       desired_size = var.default_node_count
 
-      subnet_ids = module.vpc.public_subnets
+      subnet_ids = module.vpc.private_subnets
     }
   }
 
