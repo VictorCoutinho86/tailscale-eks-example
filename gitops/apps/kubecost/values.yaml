@@ -3,3 +3,8 @@ kubecost:
   # does not fit and leaves pods pending. Disabled for this MVP cluster.
   networkCosts:
     enabled: true
+  serviceAccount:
+    create: true
+    name: kubecost-aws
+  cloudCost:
+    serviceAccountName: kubecost-aws
