@@ -30,8 +30,9 @@ This repository is a Terraform MVP for a private Amazon EKS platform accessed th
 
 ## Root Terraform Responsibilities
 
-- VPC and public subnets.
-- Public subnet tags for both `kubernetes.io/role/elb` and `kubernetes.io/role/internal-elb`.
+- VPC with public /24 subnets (subnet-router, EKS control-plane ENIs) and private /20 subnets (EKS nodes, Karpenter, internal ALB).
+- `kubernetes.io/role/elb` on public subnets; `kubernetes.io/role/internal-elb` and `karpenter.sh/discovery` on private subnets.
+- The persistent Tailscale subnet-router EC2 instance is also the NAT instance for private subnet egress (`source_dest_check=false`, iptables MASQUERADE; no AWS NAT Gateway).
 - Persistent Tailscale subnet router EC2 instance.
 - Private-only EKS cluster and default managed node group.
 - EKS addons and EBS CSI Pod Identity.
