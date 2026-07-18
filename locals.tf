@@ -15,6 +15,10 @@ locals {
     for index, _ in local.azs : cidrsubnet(var.vpc_cidr, 8, index)
   ]
 
+  private_subnets = [
+    for index, _ in local.azs : cidrsubnet(var.vpc_cidr, 4, index + 1)
+  ]
+
   tailscale_subnet_router_hostname = "${local.name}-subnet-router"
 
   airflow_s3_log_policy_statements = [
