@@ -174,6 +174,7 @@ require_block_match \
 require_match 'kubecost_athena_policy_statements' locals.tf
 
 athena_block='sid = "KubecostAthenaAccess"'
+require_block_match "$athena_block" 'resources = ["*"]' locals.tf true
 for action in \
   'athena:BatchGetQueryExecution' \
   'athena:GetQueryExecution' \
@@ -195,6 +196,7 @@ for action in \
   'glue:BatchGetPartition'; do
   require_block_match "$glue_block" "$action" locals.tf
 done
+require_block_match "$glue_block" ':catalog' locals.tf
 
 cur_bucket_block='sid       = "KubecostCurBucketRead"'
 for action in s3:GetBucketLocation s3:ListBucket; do
@@ -245,6 +247,7 @@ fi
 kms_condition_block='length(var.kubecost_kms_key_arns) > 0 ?'
 kms_statement_block='sid       = "KubecostKmsDecrypt"'
 require_block_match "$kms_condition_block" "$kms_statement_block" locals.tf
+require_block_match "$kms_condition_block" '] : [],' locals.tf true
 for action in kms:Decrypt kms:GenerateDataKey kms:DescribeKey; do
   require_block_match "$kms_statement_block" "$action" locals.tf
 done
