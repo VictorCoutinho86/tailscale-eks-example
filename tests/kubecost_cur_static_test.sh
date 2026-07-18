@@ -50,7 +50,7 @@ require_block_match() {
       bracket_depth = 0
     }
     {
-      if (!found_marker && $0 ~ marker) {
+      if (!found_marker && index($0, marker)) {
         found_marker = 1
         in_scope = 1
       }
@@ -59,7 +59,7 @@ require_block_match() {
         next
       }
 
-      if ($0 ~ pattern) {
+      if (index($0, pattern)) {
         found_match = 1
       }
 
@@ -139,13 +139,13 @@ require_match 'var\.aws_region' argocd.tf
 require_match 'kubecost_athena_policy_statements' locals.tf
 require_match 'module "kubecost_pod_identity"' pod-identity.tf
 
-policy_block='^[[:space:]]*kubecost_athena_policy_statements[[:space:]]*=[[:space:]]*\['
+policy_block='kubecost_athena_policy_statements = ['
 for bucket in kubecost_cur_source_bucket kubecost_athena_query_results_bucket; do
-  require_block_match "$policy_block" "var\\.${bucket}" locals.tf
+  require_block_match "$policy_block" "var.${bucket}" locals.tf
 done
 
 for action in \
-  'athena:\*' \
+  'athena:*' \
   'glue:GetDatabase' \
   'glue:GetTable' \
   'glue:GetPartition' \
@@ -162,12 +162,13 @@ for action in \
   require_block_match "$policy_block" "$action" locals.tf
 done
 
-pod_identity_block='^[[:space:]]*module[[:space:]]+"kubecost_pod_identity"[[:space:]]*'
+pod_identity_block='module "kubecost_pod_identity" {'
 for setting in \
-  'attach_custom_policy[[:space:]]*=[[:space:]]*true' \
-  'policy_statements[[:space:]]*=[[:space:]]*local\.kubecost_athena_policy_statements' \
-  'namespace[[:space:]]*=[[:space:]]*"kubecost"' \
-  'service_account[[:space:]]*=[[:space:]]*"kubecost-aws"'; do
+  'attach_custom_policy = true' \
+  'policy_statements' \
+  'local.kubecost_athena_policy_statements' \
+  'namespace = "kubecost"' \
+  'service_account = "kubecost-aws"'; do
   require_block_match "$pod_identity_block" "$setting" pod-identity.tf
 done
 
