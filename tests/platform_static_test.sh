@@ -81,6 +81,11 @@ if ! grep -q 'route53_domain_name' "$variables" || ! grep -q 'platform_certifica
   exit 1
 fi
 
+if ! grep -A4 'variable "default_node_count"' "$variables" | grep -q 'default     = 3'; then
+  printf 'expected default EKS node group count to be 3\n' >&2
+  exit 1
+fi
+
 if grep -R -q 'resource "helm_release"' platform 2>/dev/null; then
   printf 'expected platform Terraform to stop owning Helm releases\n' >&2
   exit 1
@@ -88,6 +93,31 @@ fi
 
 if grep -R -q 'resource "kubernetes_' platform 2>/dev/null; then
   printf 'expected platform Terraform to stop owning Kubernetes resources\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'source.*hashicorp/helm' versions.tf; then
+  printf 'expected root Terraform to declare Helm provider for Argo CD bootstrap\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'variable "enable_argocd_bootstrap"' "$variables"; then
+  printf 'expected an explicit phase-2 switch for Terraform Argo CD bootstrap\n' >&2
+  exit 1
+fi
+
+if ! grep -R -q 'count = var.enable_argocd_bootstrap ? 1 : 0' . --include='*.tf'; then
+  printf 'expected Terraform Argo CD bootstrap resources to be gated until Tailscale route approval\n' >&2
+  exit 1
+fi
+
+if ! grep -R -q 'resource "helm_release" "argocd"' . --include='*.tf'; then
+  printf 'expected root Terraform helm_release.argocd bootstrap\n' >&2
+  exit 1
+fi
+
+if ! grep -R -q 'resource "helm_release" "argocd_root_application"' . --include='*.tf'; then
+  printf 'expected root Terraform helm_release.argocd_root_application bootstrap\n' >&2
   exit 1
 fi
 

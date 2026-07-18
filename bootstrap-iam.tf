@@ -15,7 +15,7 @@ data "aws_ami" "bootstrap_al2023" {
 
 resource "aws_security_group" "bootstrap" {
   name        = "${local.name}-bootstrap"
-  description = "Bootstrap instance security group"
+  description = "Bootstrap instance egress-only security group"
   vpc_id      = module.vpc.vpc_id
 
   ingress {

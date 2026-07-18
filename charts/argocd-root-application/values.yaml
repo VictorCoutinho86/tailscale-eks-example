@@ -1,0 +1,10 @@
+repoURL: https://github.com/VictorCoutinho86/tailscale-eks-example.git
+targetRevision: master
+clusterName: tailscale-eks-example
+awsRegion: us-east-1
+vpcId: vpc-00000000000000000
+domain: example.com
+certificateArn: arn:aws:acm:us-east-1:000000000000:certificate/00000000-0000-0000-0000-000000000000
+karpenterQueueName: tailscale-eks-example
+karpenterNodeRoleName: tailscale-eks-example-karpenter
+sparkWorkloadNamespace: spark-jobs

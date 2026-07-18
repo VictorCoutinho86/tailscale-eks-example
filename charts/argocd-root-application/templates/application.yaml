@@ -8,31 +8,31 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: ${repo_url}
-    targetRevision: ${target_revision}
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
     path: gitops/root
     helm:
       parameters:
         - name: global.repoURL
-          value: ${repo_url}
+          value: {{ .Values.repoURL | quote }}
         - name: global.targetRevision
-          value: ${target_revision}
+          value: {{ .Values.targetRevision | quote }}
         - name: global.clusterName
-          value: ${cluster_name}
+          value: {{ .Values.clusterName | quote }}
         - name: global.awsRegion
-          value: ${aws_region}
+          value: {{ .Values.awsRegion | quote }}
         - name: global.vpcId
-          value: ${vpc_id}
+          value: {{ .Values.vpcId | quote }}
         - name: global.domain
-          value: ${domain}
+          value: {{ .Values.domain | quote }}
         - name: global.certificateArn
-          value: ${certificate_arn}
+          value: {{ .Values.certificateArn | quote }}
         - name: global.karpenterQueueName
-          value: ${karpenter_queue_name}
+          value: {{ .Values.karpenterQueueName | quote }}
         - name: global.karpenterNodeRoleName
-          value: ${karpenter_node_role_name}
+          value: {{ .Values.karpenterNodeRoleName | quote }}
         - name: global.sparkWorkloadNamespace
-          value: ${spark_workload_namespace}
+          value: {{ .Values.sparkWorkloadNamespace | quote }}
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

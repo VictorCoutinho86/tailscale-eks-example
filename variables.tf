@@ -53,11 +53,17 @@ variable "default_node_instance_type" {
 variable "default_node_count" {
   description = "Fixed size for the default EKS managed node group."
   type        = number
-  default     = 4
+  default     = 3
 }
 
 variable "enable_bootstrap_instance" {
   description = "Create the EC2 subnet router instance that advertises the VPC subnet route."
+  type        = bool
+  default     = true
+}
+
+variable "enable_argocd_bootstrap" {
+  description = "Install Argo CD and the root Argo CD Application from Terraform after the Tailscale subnet route is approved."
   type        = bool
   default     = true
 }

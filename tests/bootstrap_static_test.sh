@@ -61,6 +61,16 @@ if ! grep -q 'tailscale_subnet_router_auth_key' "$bootstrap_tf"; then
   exit 1
 fi
 
+if grep -q 'user_data_replace_on_change = true' "$bootstrap_tf"; then
+  printf 'expected persistent subnet router user_data changes not to force instance replacement\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'ignore_changes = \[user_data\]' "$bootstrap_tf"; then
+  printf 'expected persistent subnet router to ignore first-boot user_data drift\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'tailscale_subnet_router_hostname' "$locals_tf"; then
   printf 'expected locals to define a subnet router hostname\n' >&2
   exit 1
@@ -76,26 +86,15 @@ if grep -q 'tailscale configure kubeconfig\|aws eks update-kubeconfig' "$outputs
   exit 1
 fi
 
-for expected in \
+for forbidden in \
   'aws eks update-kubeconfig' \
   'helm upgrade --install argocd' \
   'kubectl apply' \
   'argocd-bootstrap.service' \
   'argocd-bootstrap.timer' \
   'systemctl enable --now argocd-bootstrap.timer'; do
-  if ! grep -q "$expected" "$bootstrap"; then
-    printf 'expected bootstrap template to contain %s\n' "$expected" >&2
-    exit 1
-  fi
-done
-
-for expected in \
-  'set -euo pipefail' \
-  'until aws eks describe-cluster' \
-  'until kubectl get namespace kube-system' \
-  '/var/lib/argocd-bootstrap/succeeded'; do
-  if ! grep -q "$expected" "$bootstrap"; then
-    printf 'expected idempotent/retryable bootstrap behavior %s\n' "$expected" >&2
+  if grep -q "$forbidden" "$bootstrap"; then
+    printf 'expected bootstrap template not to contain Kubernetes bootstrap command %s\n' "$forbidden" >&2
     exit 1
   fi
 done
