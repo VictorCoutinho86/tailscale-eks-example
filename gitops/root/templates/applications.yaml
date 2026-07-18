@@ -66,14 +66,9 @@ spec:
         sparkNodeLabels:
           workload: spark
 {{ else if eq $app.name "kubecost" }}
-        cost-analyzer:
+        kubecost:
           global:
             clusterId: {{ $.Values.global.clusterName | quote }}
-          prometheus:
-            server:
-              global:
-                external_labels:
-                  cluster_id: {{ $.Values.global.clusterName | quote }}
 {{ end }}
   destination:
     server: https://kubernetes.default.svc
@@ -84,4 +79,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      {{- if eq $app.name "spark-operator" }}
+      - ServerSideApply=true
+      {{- end }}
 {{- end }}

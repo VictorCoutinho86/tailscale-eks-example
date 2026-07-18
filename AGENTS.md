@@ -172,9 +172,10 @@ rtk helm template external-dns external-dns \
 
 rtk helm template external-dns external-dns \
 
-rtk helm template kubecost cost-analyzer \
-  --repo https://kubecost.github.io/cost-analyzer \
-  --version 2.8.7 | rg '^  name: kubecost-cost-analyzer$'
+rtk helm template kubecost kubecost \
+  --repo https://kubecost.github.io/kubecost/ \
+  --version 3.2.1 \
+  --set global.clusterId=test | rg '^  name: kubecost-frontend$'
 ```
 
 ## Known Warnings And Risks

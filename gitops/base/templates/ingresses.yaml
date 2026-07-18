@@ -79,6 +79,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: kubecost-cost-analyzer
+                name: kubecost-frontend
                 port:
                   number: 9090

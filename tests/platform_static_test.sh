@@ -164,3 +164,55 @@ if ! grep -q 'cidrsubnet(var.vpc_cidr, 8, index)' locals.tf; then
   printf 'expected /24 public subnet calculation with cidrsubnet newbits 8\n' >&2
   exit 1
 fi
+
+if ! grep -q 'repository: https://bitnami.github.io/sealed-secrets' gitops/apps/sealed-secrets/Chart.yaml; then
+  printf 'expected sealed-secrets to use the current bitnami.github.io repository\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'version: 2.19.1' gitops/apps/sealed-secrets/Chart.yaml; then
+  printf 'expected sealed-secrets chart pinned to 2.19.1\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/apps/sealed-secrets/charts/sealed-secrets-2.19.1.tgz; then
+  printf 'expected vendored sealed-secrets 2.19.1 chart tgz\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'repository: https://kubecost.github.io/kubecost/' gitops/apps/kubecost/Chart.yaml; then
+  printf 'expected kubecost to use the current kubecost.github.io/kubecost repository\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'name: kubecost' gitops/apps/kubecost/Chart.yaml || ! grep -q 'version: 3.2.1' gitops/apps/kubecost/Chart.yaml; then
+  printf 'expected kubecost chart dependency pinned to kubecost 3.2.1\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/apps/kubecost/charts/kubecost-3.2.1.tgz; then
+  printf 'expected vendored kubecost 3.2.1 chart tgz\n' >&2
+  exit 1
+fi
+
+for key in fernetKey jwtSecret apiSecretKey; do
+  if ! grep -E "^  ${key}: ['\"]?[A-Za-z0-9+/=_-]+" gitops/apps/airflow/values.yaml >/dev/null; then
+    printf 'expected airflow values to define a static %s\n' "$key" >&2
+    exit 1
+  fi
+done
+
+if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
+  printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2
+  exit 1
+fi
+
+if grep -R -q 'bitnami-labs.github.io\|kubecost.github.io/cost-analyzer' gitops; then
+  printf 'expected discontinued chart repositories to be removed from gitops tree\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'name: kubecost-frontend' gitops/base/templates/ingresses.yaml; then
+  printf 'expected kubecost ingress to target the kubecost 3.x frontend service\n' >&2
+  exit 1
+fi

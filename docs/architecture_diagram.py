@@ -79,7 +79,7 @@ with Diagram(
 
         argocd_service = Service("argocd-server:80")
         airflow_service = Service("airflow-api-server:8080")
-        kubecost_service = Service("kubecost-cost-analyzer:9090")
+        kubecost_service = Service("kubecost-frontend:9090")
 
     tailnet_client >> Edge(label="subnet route") >> subnet_router
     subnet_router >> Edge(label="private EKS API") >> eks_api
