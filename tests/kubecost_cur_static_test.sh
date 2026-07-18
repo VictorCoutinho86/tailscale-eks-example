@@ -151,6 +151,15 @@ for variable in \
   require_exact_line "$variable" variables.tf
 done
 
+for variable in \
+  'variable "kubecost_athena_database" {' \
+  'variable "kubecost_athena_table" {' \
+  'variable "kubecost_athena_query_results_bucket" {' \
+  'variable "kubecost_cur_source_bucket" {' \
+  'variable "kubecost_athena_workgroup" {'; do
+  require_block_match "$variable" 'type        = string' variables.tf true
+done
+
 require_block_match \
   'variable "kubecost_kms_key_arns" {' \
   'type        = list(string)' \
@@ -187,21 +196,29 @@ for action in \
   require_block_match "$glue_block" "$action" locals.tf
 done
 
-require_match 's3:::\$\{var\.kubecost_cur_source_bucket\}' locals.tf
-require_match 's3:::\$\{var\.kubecost_cur_source_bucket\}/\*' locals.tf
-require_match 's3:::\$\{var\.kubecost_athena_query_results_bucket\}' locals.tf
-require_match 's3:::\$\{var\.kubecost_athena_query_results_bucket\}/\*' locals.tf
-for action in \
-  's3:GetBucketLocation' \
-  's3:ListBucket' \
-  's3:GetObject' \
-  's3:GetObjectVersion' \
-  's3:ListBucketMultipartUploads' \
-  's3:AbortMultipartUpload' \
-  's3:ListMultipartUploadParts' \
-  's3:PutObject'; do
-  require_match "$action" locals.tf
+cur_bucket_block='sid       = "KubecostCurBucketRead"'
+for action in s3:GetBucketLocation s3:ListBucket; do
+  require_block_match "$cur_bucket_block" "$action" locals.tf
 done
+require_block_match "$cur_bucket_block" 's3:::${var.kubecost_cur_source_bucket}' locals.tf
+
+cur_object_block='sid       = "KubecostCurObjectRead"'
+for action in s3:GetObject s3:GetObjectVersion; do
+  require_block_match "$cur_object_block" "$action" locals.tf
+done
+require_block_match "$cur_object_block" 's3:::${var.kubecost_cur_source_bucket}/*' locals.tf
+
+results_bucket_block='sid       = "KubecostAthenaResultsBucket"'
+for action in s3:GetBucketLocation s3:ListBucket s3:ListBucketMultipartUploads; do
+  require_block_match "$results_bucket_block" "$action" locals.tf
+done
+require_block_match "$results_bucket_block" 's3:::${var.kubecost_athena_query_results_bucket}' locals.tf
+
+results_object_block='sid = "KubecostAthenaResultsObjects"'
+for action in s3:AbortMultipartUpload s3:GetObject s3:ListMultipartUploadParts s3:PutObject; do
+  require_block_match "$results_object_block" "$action" locals.tf
+done
+require_block_match "$results_object_block" 's3:::${var.kubecost_athena_query_results_bucket}/*' locals.tf
 
 if grep -Fq 'athena:*' locals.tf; then
   printf 'did not expect athena:* in locals.tf\n' >&2
@@ -225,11 +242,13 @@ if grep -Fq 'table/${var.kubecost_athena_database}/*' locals.tf; then
   exit 1
 fi
 
-require_match 'length\(var\.kubecost_kms_key_arns\) > 0 \?' locals.tf
+kms_condition_block='length(var.kubecost_kms_key_arns) > 0 ?'
+kms_statement_block='sid       = "KubecostKmsDecrypt"'
+require_block_match "$kms_condition_block" "$kms_statement_block" locals.tf
 for action in kms:Decrypt kms:GenerateDataKey kms:DescribeKey; do
-  require_match "$action" locals.tf
+  require_block_match "$kms_statement_block" "$action" locals.tf
 done
-require_match 'resources = var\.kubecost_kms_key_arns' locals.tf
+require_block_match "$kms_statement_block" 'resources = var.kubecost_kms_key_arns' locals.tf
 
 require_match 'data\.aws_caller_identity\.current\.account_id' argocd.tf
 require_match 'var\.aws_region' argocd.tf
