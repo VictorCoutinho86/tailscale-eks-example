@@ -20,6 +20,7 @@ uv run --script docs/architecture_diagram.py
 - A reusable, non-ephemeral Tailscale auth key for the subnet router EC2 instance.
 - Tailscale CLI on the local machine.
 - AWS CLI and `kubectl` on the local machine.
+- Helm 3 on the local machine for Helm-backed regression validation.
 
 ## Root Infrastructure
 

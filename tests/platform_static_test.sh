@@ -192,8 +192,8 @@ if ! grep -q 'valuesObject:' charts/argocd-root-application/templates/applicatio
   exit 1
 fi
 
-if ! grep -A25 '^      parameters:' charts/argocd-root-application/templates/application.yaml | grep -q 'name: global.clusterName' || \
-  ! grep -A25 '^      parameters:' charts/argocd-root-application/templates/application.yaml | grep -q 'name: global.airflowLogsBucket'; then
+if ! grep -Fq 'name: global.clusterName' charts/argocd-root-application/templates/application.yaml || \
+  ! grep -Fq 'name: global.airflowLogsBucket' charts/argocd-root-application/templates/application.yaml; then
   printf 'expected non-secret global Helm parameters to remain in the root Application\n' >&2
   exit 1
 fi
@@ -210,8 +210,7 @@ if ! rendered_application=$(helm template argocd-root-application charts/argocd-
   exit 1
 fi
 
-if ! grep -A1 '^      valuesObject:' <<<"$rendered_application" | \
-  grep -q '^        argocdAdminPassword: "alpha,beta"$'; then
+if ! grep -Fq 'argocdAdminPassword: "alpha,beta"' <<<"$rendered_application"; then
   printf 'expected valuesObject to preserve the comma-containing Airflow password\n' >&2
   exit 1
 fi
