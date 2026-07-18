@@ -67,6 +67,11 @@ spec:
         nodeRoleName: {{ $.Values.global.karpenterNodeRoleName | quote }}
         sparkNodeLabels:
           workload: spark
+{{ else if eq $app.name "spark-operator" }}
+        spark-operator:
+          spark:
+            jobNamespaces:
+              - {{ $.Values.global.sparkWorkloadNamespace | quote }}
 {{ else if eq $app.name "airflow" }}
         airflow:
           createUserJob:
