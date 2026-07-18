@@ -39,6 +39,7 @@ spec:
           value: {{ .Values.airflowLogsBucket | quote }}
         - name: global.kubecostAthenaAccountId
           value: {{ .Values.kubecostAthenaAccountId | quote }}
+          forceString: true
         - name: global.kubecostAthenaDatabase
           value: {{ .Values.kubecostAthenaDatabase | quote }}
         - name: global.kubecostAthenaTable

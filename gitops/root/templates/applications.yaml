@@ -86,9 +86,6 @@ spec:
         kubecost:
           global:
             clusterId: {{ $.Values.global.clusterName | quote }}
-          serviceAccount:
-            create: true
-            name: kubecost-aws
           cloudCost:
             serviceAccountName: kubecost-aws
             cloudIntegrationJSON: {{ dict "aws" (dict "athena" (list (dict "bucket" (printf "s3://%s" $.Values.global.kubecostAthenaQueryResultsBucket) "region" $.Values.global.awsRegion "database" $.Values.global.kubecostAthenaDatabase "table" $.Values.global.kubecostAthenaTable "workgroup" $.Values.global.kubecostAthenaWorkgroup "account" $.Values.global.kubecostAthenaAccountId))) | toJson | quote }}
