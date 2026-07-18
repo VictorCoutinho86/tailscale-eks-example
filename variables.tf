@@ -47,7 +47,27 @@ variable "cluster_version" {
 variable "default_node_instance_type" {
   description = "Instance type for the default EKS managed node group."
   type        = string
-  default     = "t4g.small"
+  default     = "t2.medium"
+}
+
+variable "default_node_ami_type" {
+  description = "AMI type for the default EKS managed node group."
+  type        = string
+  default     = "AL2023_x86_64_STANDARD"
+  validation {
+    condition     = contains(["AL2023_ARM_64_STANDARD", "AL2023_x86_64_STANDARD"], var.default_node_ami_type)
+    error_message = "default_node_ami_type must be one of AL2023_ARM_64_STANDARD, AL2023_x86_64_STANDARD."
+  }
+}
+
+variable "default_node_capacity_type" {
+  description = "Capacity type for the default EKS managed node group."
+  type        = string
+  default     = "SPOT"
+  validation {
+    condition     = contains(["ON_DEMAND", "SPOT"], var.default_node_capacity_type)
+    error_message = "default_node_capacity_type must be either ON_DEMAND or SPOT."
+  }
 }
 
 variable "default_node_count" {

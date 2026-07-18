@@ -61,9 +61,9 @@ module "eks" {
 
   eks_managed_node_groups = {
     default = {
-      ami_type       = "AL2023_ARM_64_STANDARD"
+      ami_type       = var.default_node_ami_type
       instance_types = [var.default_node_instance_type]
-      capacity_type  = "SPOT"
+      capacity_type  = var.default_node_capacity_type
 
       min_size     = var.default_node_count
       max_size     = var.default_node_count
