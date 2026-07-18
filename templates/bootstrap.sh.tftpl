@@ -29,3 +29,21 @@ tailscale up \
   --advertise-routes="$VPC_CIDR,${vpc_cidr_resolver}/32" \
   --accept-dns=false
 unset TAILSCALE_SUBNET_ROUTER_AUTH_KEY
+
+cat >/etc/systemd/system/nat-masquerade.service <<EOF
+[Unit]
+Description=Enable NAT masquerade for private subnet egress
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t nat -C POSTROUTING -s $VPC_CIDR ! -d $VPC_CIDR -j MASQUERADE || /usr/sbin/iptables -t nat -A POSTROUTING -s $VPC_CIDR ! -d $VPC_CIDR -j MASQUERADE'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now nat-masquerade.service

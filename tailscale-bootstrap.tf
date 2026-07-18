@@ -7,6 +7,7 @@ resource "aws_instance" "bootstrap" {
   vpc_security_group_ids      = [aws_security_group.bootstrap.id]
   iam_instance_profile        = aws_iam_instance_profile.bootstrap.name
   associate_public_ip_address = true
+  source_dest_check           = false
 
   user_data = templatefile("${path.module}/templates/bootstrap.sh.tftpl", {
     vpc_cidr                         = var.vpc_cidr

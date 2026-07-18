@@ -19,43 +19,19 @@ resource "aws_security_group" "bootstrap" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "Allow SSH from VPC"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
+    description = "Allow all traffic from the VPC for NAT forwarding and SSH debug"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = [var.vpc_cidr]
   }
 
   egress {
-    description = "Allow outbound HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
+    description = "Allow all outbound traffic for NAT forwarding"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Allow outbound HTTP for package repositories"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Allow DNS to VPC Route 53 Resolver for split DNS"
-    from_port   = 53
-    to_port     = 53
-    protocol    = "udp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    description = "Allow DNS to VPC Route 53 Resolver for split DNS (TCP fallback)"
-    from_port   = 53
-    to_port     = 53
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = merge(local.tags, { Name = "${local.name}-bootstrap" })
