@@ -4,7 +4,13 @@ kubecost:
   networkCosts:
     enabled: true
   serviceAccount:
-    create: true
+    create: false
     name: kubecost-aws
   cloudCost:
     serviceAccountName: kubecost-aws
+  extraObjects:
+    - apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kubecost-aws
+        namespace: kubecost
