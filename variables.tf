@@ -65,7 +65,13 @@ variable "enable_bootstrap_instance" {
 variable "enable_argocd_bootstrap" {
   description = "Install Argo CD and the root Argo CD Application from Terraform after the Tailscale subnet route is approved."
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "argocd_admin_password" {
+  description = "Initial password for the Argo CD admin user. Stored in Terraform state; keep terraform.tfvars and state private."
+  type        = string
+  sensitive   = true
 }
 
 variable "bootstrap_instance_type" {

@@ -121,8 +121,38 @@ if ! grep -R -q 'resource "helm_release" "argocd_root_application"' . --include=
   exit 1
 fi
 
+if ! grep -q 'variable "argocd_admin_password"' "$variables"; then
+  printf 'expected argocd_admin_password input variable\n' >&2
+  exit 1
+fi
+
+if ! grep -A4 'variable "argocd_admin_password"' "$variables" | grep -q 'sensitive   = true'; then
+  printf 'expected argocd_admin_password to be sensitive\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || ! grep -q 'bcrypt(var.argocd_admin_password)' argocd.tf; then
+  printf 'expected Argo CD helm release to set the admin password from bcrypt(var.argocd_admin_password)\n' >&2
+  exit 1
+fi
+
+if ! grep -A4 'output "argocd_admin_password"' "$outputs" | grep -q 'sensitive   = true'; then
+  printf 'expected sensitive argocd_admin_password output\n' >&2
+  exit 1
+fi
+
 if ! test -f gitops/root/Chart.yaml || ! test -f gitops/root/templates/applications.yaml; then
   printf 'expected gitops/root Helm chart for app-of-apps\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'resources-finalizer.argocd.argoproj.io' gitops/root/templates/applications.yaml; then
+  printf 'expected child Applications to use the Argo CD resources finalizer for cascade deletion\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'resources-finalizer.argocd.argoproj.io' charts/argocd-root-application/templates/application.yaml; then
+  printf 'expected root Application to use the Argo CD resources finalizer for cascade deletion\n' >&2
   exit 1
 fi
 
@@ -211,6 +241,20 @@ if ! test -f gitops/apps/airflow/templates/fernet-key-secret.yaml; then
   printf 'expected airflow wrapper chart to render the fernet key secret\n' >&2
   exit 1
 fi
+
+for ref in 'jwtSecretName: airflow-jwt-secret' 'apiSecretKeySecretName: airflow-api-secret-key'; do
+  if ! grep -q "$ref" gitops/apps/airflow/values.yaml; then
+    printf 'expected airflow values to reference wrapper-managed secret via %s\n' "$ref" >&2
+    exit 1
+  fi
+done
+
+for tpl in jwt-secret api-secret-key-secret; do
+  if ! test -f "gitops/apps/airflow/templates/${tpl}.yaml"; then
+    printf 'expected airflow wrapper chart to render %s.yaml\n' "$tpl" >&2
+    exit 1
+  fi
+done
 
 if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
   printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2

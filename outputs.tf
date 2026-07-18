@@ -73,3 +73,9 @@ output "platform_certificate_arn" {
   description = "Validated ACM wildcard certificate ARN for the platform ALB."
   value       = aws_acm_certificate_validation.platform.certificate_arn
 }
+
+output "argocd_admin_password" {
+  description = "Password for the Argo CD admin user (login: admin). Retrieve with: terraform output -raw argocd_admin_password"
+  value       = var.argocd_admin_password
+  sensitive   = true
+}

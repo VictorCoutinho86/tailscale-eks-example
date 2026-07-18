@@ -20,6 +20,11 @@ resource "helm_release" "argocd" {
       name  = "configs.params.server\\.insecure"
       value = "true"
       type  = "string"
+    },
+    {
+      name  = "configs.secret.argocdServerAdminPassword"
+      value = bcrypt(var.argocd_admin_password)
+      type  = "string"
     }
   ]
 }
