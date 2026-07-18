@@ -55,32 +55,50 @@ locals {
   kubecost_athena_policy_statements = concat(
     [
       {
-        sid = "KubecostAthenaAccess"
+        sid = "KubecostAthenaQueryAccess"
         actions = [
           "athena:BatchGetQueryExecution",
           "athena:GetQueryExecution",
           "athena:GetQueryResults",
           "athena:GetQueryResultsStream",
-          "athena:StartQueryExecution",
           "athena:StopQueryExecution",
-          "athena:GetWorkGroup",
-          "athena:ListWorkGroups",
         ]
         resources = ["*"]
       },
       {
-        sid = "KubecostGlueRead"
+        sid = "KubecostAthenaWorkgroupAccess"
         actions = [
-          "glue:GetDatabase",
-          "glue:GetTable",
-          "glue:GetPartition",
-          "glue:BatchGetPartition",
-          "glue:GetUserDefinedFunction",
+          "athena:StartQueryExecution",
+          "athena:GetWorkGroup",
         ]
+        resources = [
+          "arn:${data.aws_partition.current.partition}:athena:${var.aws_region}:${data.aws_caller_identity.current.account_id}:workgroup/${var.kubecost_athena_workgroup}",
+        ]
+      },
+      {
+        sid       = "KubecostAthenaListWorkgroups"
+        actions   = ["athena:ListWorkGroups"]
+        resources = ["*"]
+      },
+      {
+        sid     = "KubecostGlueDatabaseRead"
+        actions = ["glue:GetDatabase"]
         resources = [
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.kubecost_athena_database}",
+        ]
+      },
+      {
+        sid     = "KubecostGlueTableRead"
+        actions = ["glue:GetTable", "glue:GetPartition", "glue:BatchGetPartition"]
+        resources = [
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.kubecost_athena_database}/${var.kubecost_athena_table}",
+        ]
+      },
+      {
+        sid     = "KubecostGlueFunctionRead"
+        actions = ["glue:GetUserDefinedFunction"]
+        resources = [
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userDefinedFunction/${var.kubecost_athena_database}/*",
         ]
       },
