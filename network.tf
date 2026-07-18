@@ -52,3 +52,14 @@ resource "aws_route" "private_nat_instance" {
   destination_cidr_block = "0.0.0.0/0"
   network_interface_id   = aws_instance.bootstrap[0].primary_network_interface_id
 }
+
+resource "terraform_data" "private_subnet_nat_precondition" {
+  input = var.enable_bootstrap_instance
+
+  lifecycle {
+    precondition {
+      condition     = var.enable_bootstrap_instance
+      error_message = "enable_bootstrap_instance must be true while private subnet egress uses the subnet-router NAT instance."
+    }
+  }
+}
