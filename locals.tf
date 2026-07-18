@@ -84,8 +84,10 @@ locals {
       },
       {
         sid     = "KubecostGlueTableRead"
-        actions = ["glue:GetTable", "glue:GetPartition", "glue:BatchGetPartition"]
+        actions = ["glue:GetTable", "glue:GetPartition", "glue:GetPartitions", "glue:BatchGetPartition"]
         resources = [
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.kubecost_athena_database}",
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.kubecost_athena_database}/${var.kubecost_athena_table}",
         ]
       },
@@ -93,6 +95,8 @@ locals {
         sid     = "KubecostGlueFunctionRead"
         actions = ["glue:GetUserDefinedFunction"]
         resources = [
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.kubecost_athena_database}",
           "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userDefinedFunction/${var.kubecost_athena_database}/*",
         ]
       },

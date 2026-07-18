@@ -93,7 +93,7 @@ variable "kubecost_cur_source_bucket" {
 variable "kubecost_athena_workgroup" {
   description = "Athena workgroup used for Kubecost CUR queries."
   type        = string
-  default     = "Primary"
+  default     = "primary"
 }
 
 variable "kubecost_kms_key_arns" {
