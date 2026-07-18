@@ -49,11 +49,15 @@ require_block_match() {
       in_scope = 0
       brace_depth = 0
       bracket_depth = 0
+      marker_line = 0
+      sid_scope = 0
     }
     {
       if (!found_marker && index($0, marker)) {
         found_marker = 1
         in_scope = 1
+        marker_line = NR
+        sid_scope = ($0 ~ /sid[[:space:]]*=/)
       }
 
       if (!in_scope) {
@@ -81,7 +85,11 @@ require_block_match() {
       closes = gsub(/\]/, "", line)
       bracket_depth += opens - closes
 
-      if (brace_depth == 0 && bracket_depth == 0) {
+      if (sid_scope) {
+        if (NR > marker_line && $0 ~ /^[[:space:]]*\},?[[:space:]]*$/) {
+          in_scope = 0
+        }
+      } else if (NR > marker_line && brace_depth == 0 && bracket_depth == 0) {
         in_scope = 0
       }
     }
@@ -138,27 +146,52 @@ for variable in \
   'variable "kubecost_athena_table" {' \
   'variable "kubecost_athena_query_results_bucket" {' \
   'variable "kubecost_cur_source_bucket" {' \
-  'variable "kubecost_athena_workgroup" {'; do
+  'variable "kubecost_athena_workgroup" {' \
+  'variable "kubecost_kms_key_arns" {'; do
   require_exact_line "$variable" variables.tf
 done
 
-require_match 'data\.aws_caller_identity\.current\.account_id' argocd.tf
-require_match 'var\.aws_region' argocd.tf
-require_match 'kubecost_athena_policy_statements' locals.tf
-require_match 'module "kubecost_pod_identity"' pod-identity.tf
+require_block_match \
+  'variable "kubecost_kms_key_arns" {' \
+  'type        = list(string)' \
+  variables.tf \
+  true
+require_block_match \
+  'variable "kubecost_kms_key_arns" {' \
+  'default     = []' \
+  variables.tf \
+  true
 
-policy_block='kubecost_athena_policy_statements = ['
-for bucket in kubecost_cur_source_bucket kubecost_athena_query_results_bucket; do
-  require_block_match "$policy_block" "var.${bucket}" locals.tf
+require_match 'kubecost_athena_policy_statements' locals.tf
+
+athena_block='sid = "KubecostAthenaAccess"'
+for action in \
+  'athena:BatchGetQueryExecution' \
+  'athena:GetQueryExecution' \
+  'athena:GetQueryResults' \
+  'athena:GetQueryResultsStream' \
+  'athena:StartQueryExecution' \
+  'athena:StopQueryExecution' \
+  'athena:GetWorkGroup' \
+  'athena:ListWorkGroups'; do
+  require_block_match "$athena_block" "$action" locals.tf
 done
 
+glue_block='sid = "KubecostGlueRead"'
 for action in \
-  'athena:*' \
   'glue:GetDatabase' \
   'glue:GetTable' \
   'glue:GetPartition' \
   'glue:GetUserDefinedFunction' \
-  'glue:BatchGetPartition' \
+  'glue:BatchGetPartition'; do
+  require_block_match "$glue_block" "$action" locals.tf
+done
+
+require_match 's3:::\$\{var\.kubecost_cur_source_bucket\}' locals.tf
+require_match 's3:::\$\{var\.kubecost_cur_source_bucket\}/\*' locals.tf
+require_match 's3:::\$\{var\.kubecost_athena_query_results_bucket\}' locals.tf
+require_match 's3:::\$\{var\.kubecost_athena_query_results_bucket\}/\*' locals.tf
+for action in \
   's3:GetBucketLocation' \
   's3:ListBucket' \
   's3:GetObject' \
@@ -167,8 +200,41 @@ for action in \
   's3:AbortMultipartUpload' \
   's3:ListMultipartUploadParts' \
   's3:PutObject'; do
-  require_block_match "$policy_block" "$action" locals.tf
+  require_match "$action" locals.tf
 done
+
+if grep -Fq 'athena:*' locals.tf; then
+  printf 'did not expect athena:* in locals.tf\n' >&2
+  exit 1
+fi
+for pattern in 'glue:GetDatabase*' 'glue:GetTable*' 'glue:GetPartition*'; do
+  if grep -Fq "$pattern" locals.tf; then
+    printf 'did not expect %s in locals.tf\n' "$pattern" >&2
+    exit 1
+  fi
+done
+
+for resource in \
+  'database/${var.kubecost_athena_database}' \
+  'table/${var.kubecost_athena_database}/${var.kubecost_athena_table}' \
+  'userDefinedFunction/${var.kubecost_athena_database}/*'; do
+  require_block_match 'sid = "KubecostGlueRead"' "$resource" locals.tf
+done
+if grep -Fq 'table/${var.kubecost_athena_database}/*' locals.tf; then
+  printf 'did not expect wildcard Glue table resource in locals.tf\n' >&2
+  exit 1
+fi
+
+require_match 'length\(var\.kubecost_kms_key_arns\) > 0 \?' locals.tf
+for action in kms:Decrypt kms:GenerateDataKey kms:DescribeKey; do
+  require_match "$action" locals.tf
+done
+require_match 'resources = var\.kubecost_kms_key_arns' locals.tf
+
+require_match 'data\.aws_caller_identity\.current\.account_id' argocd.tf
+require_match 'var\.aws_region' argocd.tf
+
+require_match 'module "kubecost_pod_identity"' pod-identity.tf
 
 pod_identity_block='module "kubecost_pod_identity" {'
 for setting in \

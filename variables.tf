@@ -96,6 +96,12 @@ variable "kubecost_athena_workgroup" {
   default     = "Primary"
 }
 
+variable "kubecost_kms_key_arns" {
+  description = "Optional KMS key ARNs used to encrypt Kubecost CUR and Athena query-result buckets."
+  type        = list(string)
+  default     = []
+}
+
 variable "default_node_count" {
   description = "Fixed size for the default EKS managed node group."
   type        = number

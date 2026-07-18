@@ -52,53 +52,72 @@ locals {
     }
   ]
 
-  kubecost_athena_policy_statements = [
-    {
-      sid       = "KubecostAthenaAccess"
-      actions   = ["athena:*"]
-      resources = ["*"]
-    },
-    {
-      sid = "KubecostGlueRead"
-      actions = [
-        "glue:GetDatabase*",
-        "glue:GetTable*",
-        "glue:GetPartition*",
-        "glue:GetUserDefinedFunction",
-        "glue:BatchGetPartition",
-      ]
-      resources = [
-        "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
-        "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.kubecost_athena_database}",
-        "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.kubecost_athena_database}/*",
-      ]
-    },
-    {
-      sid       = "KubecostCurBucketRead"
-      actions   = ["s3:GetBucketLocation", "s3:ListBucket"]
-      resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_cur_source_bucket}"]
-    },
-    {
-      sid       = "KubecostCurObjectRead"
-      actions   = ["s3:GetObject", "s3:GetObjectVersion"]
-      resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_cur_source_bucket}/*"]
-    },
-    {
-      sid       = "KubecostAthenaResultsBucket"
-      actions   = ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
-      resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_athena_query_results_bucket}"]
-    },
-    {
-      sid = "KubecostAthenaResultsObjects"
-      actions = [
-        "s3:AbortMultipartUpload",
-        "s3:GetObject",
-        "s3:ListMultipartUploadParts",
-        "s3:PutObject",
-      ]
-      resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_athena_query_results_bucket}/*"]
-    },
-  ]
+  kubecost_athena_policy_statements = concat(
+    [
+      {
+        sid = "KubecostAthenaAccess"
+        actions = [
+          "athena:BatchGetQueryExecution",
+          "athena:GetQueryExecution",
+          "athena:GetQueryResults",
+          "athena:GetQueryResultsStream",
+          "athena:StartQueryExecution",
+          "athena:StopQueryExecution",
+          "athena:GetWorkGroup",
+          "athena:ListWorkGroups",
+        ]
+        resources = ["*"]
+      },
+      {
+        sid = "KubecostGlueRead"
+        actions = [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetPartition",
+          "glue:BatchGetPartition",
+          "glue:GetUserDefinedFunction",
+        ]
+        resources = [
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.kubecost_athena_database}",
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.kubecost_athena_database}/${var.kubecost_athena_table}",
+          "arn:${data.aws_partition.current.partition}:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userDefinedFunction/${var.kubecost_athena_database}/*",
+        ]
+      },
+      {
+        sid       = "KubecostCurBucketRead"
+        actions   = ["s3:GetBucketLocation", "s3:ListBucket"]
+        resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_cur_source_bucket}"]
+      },
+      {
+        sid       = "KubecostCurObjectRead"
+        actions   = ["s3:GetObject", "s3:GetObjectVersion"]
+        resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_cur_source_bucket}/*"]
+      },
+      {
+        sid       = "KubecostAthenaResultsBucket"
+        actions   = ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
+        resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_athena_query_results_bucket}"]
+      },
+      {
+        sid = "KubecostAthenaResultsObjects"
+        actions = [
+          "s3:AbortMultipartUpload",
+          "s3:GetObject",
+          "s3:ListMultipartUploadParts",
+          "s3:PutObject",
+        ]
+        resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.kubecost_athena_query_results_bucket}/*"]
+      },
+    ],
+    length(var.kubecost_kms_key_arns) > 0 ? [
+      {
+        sid       = "KubecostKmsDecrypt"
+        actions   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        resources = var.kubecost_kms_key_arns
+      },
+    ] : [],
+  )
 
   tags = merge(
     {
