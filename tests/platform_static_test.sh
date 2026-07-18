@@ -81,8 +81,8 @@ if ! grep -q 'route53_domain_name' "$variables" || ! grep -q 'platform_certifica
   exit 1
 fi
 
-if ! grep -A4 'variable "default_node_count"' "$variables" | grep -q 'default     = 3'; then
-  printf 'expected default EKS node group count to be 3\n' >&2
+if ! grep -A4 'variable "default_node_count"' "$variables" | grep -q 'default     = 4'; then
+  printf 'expected default EKS node group count to be 4\n' >&2
   exit 1
 fi
 
@@ -202,6 +202,16 @@ for key in fernetKey jwtSecret apiSecretKey; do
   fi
 done
 
+if ! grep -q 'fernetKeySecretName: airflow-fernet-key' gitops/apps/airflow/values.yaml; then
+  printf 'expected airflow to reference an externally managed fernet key secret (chart fernet secret uses a helm hook Argo CD cannot apply)\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/apps/airflow/templates/fernet-key-secret.yaml; then
+  printf 'expected airflow wrapper chart to render the fernet key secret\n' >&2
+  exit 1
+fi
+
 if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
   printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2
   exit 1
@@ -214,5 +224,10 @@ fi
 
 if ! grep -q 'name: kubecost-frontend' gitops/base/templates/ingresses.yaml; then
   printf 'expected kubecost ingress to target the kubecost 3.x frontend service\n' >&2
+  exit 1
+fi
+
+if ! grep -A2 'networkCosts:' gitops/apps/kubecost/values.yaml | grep -q 'enabled: false'; then
+  printf 'expected kubecost network-costs daemonset to be disabled on small nodes\n' >&2
   exit 1
 fi

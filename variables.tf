@@ -53,7 +53,7 @@ variable "default_node_instance_type" {
 variable "default_node_count" {
   description = "Fixed size for the default EKS managed node group."
   type        = number
-  default     = 3
+  default     = 4
 }
 
 variable "enable_bootstrap_instance" {
