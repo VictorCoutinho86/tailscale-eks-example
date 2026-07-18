@@ -11,12 +11,12 @@ require_match() {
   fi
 }
 
-require_fixed_match() {
-  local pattern=$1
+require_exact_line() {
+  local line=$1
   local file=$2
 
-  if ! grep -Fq -- "$pattern" "$file"; then
-    printf 'expected %s in %s\n' "$pattern" "$file" >&2
+  if ! grep -Fxq -- "$line" "$file"; then
+    printf 'expected exact line %s in %s\n' "$line" "$file" >&2
     exit 1
   fi
 }
@@ -40,7 +40,7 @@ for variable in \
   'variable "kubecost_athena_query_results_bucket" {' \
   'variable "kubecost_cur_source_bucket" {' \
   'variable "kubecost_athena_workgroup" {'; do
-  require_fixed_match "$variable" variables.tf
+  require_exact_line "$variable" variables.tf
 done
 
 require_match 'data\.aws_caller_identity\.current\.account_id' argocd.tf
