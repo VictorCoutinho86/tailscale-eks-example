@@ -56,9 +56,9 @@ spec:
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["r"]
-        - key: karpenter.k8s.aws/instance-local-nvme
-          operator: Gte
-          values: ["1"]
+        - key: karpenter.k8s.aws/instance-hypervisor
+          operator: In
+          values: ["nitro"]
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
@@ -69,3 +69,8 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 1m
+    budgets:
+      - nodes: "90%"
+        reasons:
+          - "Empty"
+          - "Underutilized"
