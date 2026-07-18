@@ -51,6 +51,8 @@ airflow:
   extraEnv: |
     - name: AIRFLOW_CONN_GIT_DAGS
       value: git://https%3A%2F%2Fgithub.com%2FVictorCoutinho86%2Fdags.git
+    - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
+      value: "true"
   workers:
     resources:
       limits:

@@ -69,6 +69,9 @@ spec:
           workload: spark
 {{ else if eq $app.name "airflow" }}
         airflow:
+          createUserJob:
+            defaultUser:
+              password: {{ $.Values.argocdAdminPassword | quote }}
           config:
             logging:
               remote_logging: "True"
