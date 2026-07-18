@@ -50,6 +50,27 @@ module "external_dns_pod_identity" {
   tags       = local.tags
 }
 
+module "kubecost_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.0"
+
+  name = "${local.name}-kubecost"
+
+  attach_custom_policy = true
+  policy_statements    = local.kubecost_athena_policy_statements
+
+  associations = {
+    kubecost = {
+      cluster_name    = local.name
+      namespace       = "kubecost"
+      service_account = "kubecost-aws"
+    }
+  }
+
+  depends_on = [module.eks]
+  tags       = local.tags
+}
+
 module "airflow_task_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.0"
