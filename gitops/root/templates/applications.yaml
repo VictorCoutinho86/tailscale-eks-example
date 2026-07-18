@@ -21,6 +21,8 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: {{ $app.wave | quote }}
 spec:
