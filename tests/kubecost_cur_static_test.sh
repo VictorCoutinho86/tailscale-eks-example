@@ -27,9 +27,100 @@ require_adjacent() {
   local file=$3
   local name_pattern="^[[:space:]]*-[[:space:]]*name:[[:space:]]*${name}[[:space:]]*$"
   local value_pattern="^[[:space:]]*value:[[:space:]]*.*\\.Values\\.${value}([[:space:]}|]|$)"
+  local adjacent
 
-  if ! grep -A1 -E "$name_pattern" "$file" | grep -Eq "$value_pattern"; then
+  adjacent=$(grep -A1 -E "$name_pattern" "$file" || true)
+  if ! grep -Eq "$value_pattern" <<<"$adjacent"; then
     printf 'expected name %s adjacent to .Values.%s in %s\n' "$name" "$value" "$file" >&2
+    exit 1
+  fi
+}
+
+require_block_match() {
+  local marker=$1
+  local pattern=$2
+  local file=$3
+
+  if ! awk -v marker="$marker" -v pattern="$pattern" '
+    BEGIN {
+      found_marker = 0
+      found_match = 0
+      in_scope = 0
+      brace_depth = 0
+      bracket_depth = 0
+    }
+    {
+      if (!found_marker && $0 ~ marker) {
+        found_marker = 1
+        in_scope = 1
+      }
+
+      if (!in_scope) {
+        next
+      }
+
+      if ($0 ~ pattern) {
+        found_match = 1
+      }
+
+      line = $0
+      opens = gsub(/\{/, "", line)
+      closes = gsub(/\}/, "", line)
+      brace_depth += opens - closes
+
+      line = $0
+      opens = gsub(/\[/, "", line)
+      closes = gsub(/\]/, "", line)
+      bracket_depth += opens - closes
+
+      if (brace_depth == 0 && bracket_depth == 0) {
+        in_scope = 0
+      }
+    }
+    END {
+      exit !(found_marker && found_match && !in_scope)
+    }
+  ' "$file"; then
+    printf 'expected %s in block %s in %s\n' "$pattern" "$marker" "$file" >&2
+    exit 1
+  fi
+}
+
+require_branch_match() {
+  local branch=$1
+  local pattern=$2
+  local file=$3
+
+  if ! awk -v branch="$branch" -v pattern="$pattern" '
+    BEGIN {
+      found_branch = 0
+      found_match = 0
+      in_branch = 0
+    }
+    {
+      if (!found_branch && index($0, branch)) {
+        found_branch = 1
+        in_branch = 1
+        next
+      }
+
+      if (!in_branch) {
+        next
+      }
+
+      if (index($0, pattern)) {
+        found_match = 1
+      }
+
+      if ($0 ~ /^[[:space:]]*\{\{[[:space:]]*end[[:space:]]*\}\}/) {
+        in_branch = 0
+      }
+    }
+    END {
+      exit !(found_branch && found_match && !in_branch)
+    }
+  ' "$file"; then
+    printf 'expected %s in branch %s in %s\n' "$pattern" "$branch" "$file" >&2
     exit 1
   fi
 }
@@ -47,10 +138,10 @@ require_match 'data\.aws_caller_identity\.current\.account_id' argocd.tf
 require_match 'var\.aws_region' argocd.tf
 require_match 'kubecost_athena_policy_statements' locals.tf
 require_match 'module "kubecost_pod_identity"' pod-identity.tf
-require_match 'service_account = "kubecost-aws"' pod-identity.tf
 
+policy_block='^[[:space:]]*kubecost_athena_policy_statements[[:space:]]*=[[:space:]]*\['
 for bucket in kubecost_cur_source_bucket kubecost_athena_query_results_bucket; do
-  require_match "var\\.${bucket}" locals.tf
+  require_block_match "$policy_block" "var\\.${bucket}" locals.tf
 done
 
 for action in \
@@ -68,12 +159,17 @@ for action in \
   's3:AbortMultipartUpload' \
   's3:ListMultipartUploadParts' \
   's3:PutObject'; do
-  require_match "$action" locals.tf
+  require_block_match "$policy_block" "$action" locals.tf
 done
 
-require_match 'attach_custom_policy[[:space:]]*=[[:space:]]*true' pod-identity.tf
-require_match 'policy_statements[[:space:]]*=[[:space:]]*local\.kubecost_athena_policy_statements' pod-identity.tf
-require_match 'namespace[[:space:]]*=[[:space:]]*"kubecost"' pod-identity.tf
+pod_identity_block='^[[:space:]]*module[[:space:]]+"kubecost_pod_identity"[[:space:]]*'
+for setting in \
+  'attach_custom_policy[[:space:]]*=[[:space:]]*true' \
+  'policy_statements[[:space:]]*=[[:space:]]*local\.kubecost_athena_policy_statements' \
+  'namespace[[:space:]]*=[[:space:]]*"kubecost"' \
+  'service_account[[:space:]]*=[[:space:]]*"kubecost-aws"'; do
+  require_block_match "$pod_identity_block" "$setting" pod-identity.tf
+done
 
 require_match '^[[:space:]]*kubecostAthenaAccountId[[:space:]]*=[[:space:]]*data\.aws_caller_identity\.current\.account_id[[:space:]]*$' argocd.tf
 require_match '^[[:space:]]*kubecostAthenaDatabase[[:space:]]*=[[:space:]]*var\.kubecost_athena_database[[:space:]]*$' argocd.tf
@@ -90,7 +186,9 @@ for parameter in \
   require_adjacent "$parameter" "$parameter" charts/argocd-root-application/templates/application.yaml
 done
 
-require_match 'cloudIntegrationJSON' gitops/root/templates/applications.yaml
-require_match 'kubecost-aws' gitops/root/templates/applications.yaml
-require_match 'cloudCost:' gitops/root/templates/applications.yaml
+kubecost_branch='{{ else if eq $app.name "kubecost" }}'
+for setting in cloudIntegrationJSON cloudCost: kubecost-aws; do
+  require_branch_match "$kubecost_branch" "$setting" gitops/root/templates/applications.yaml
+done
+
 require_match 'serviceAccountName: kubecost-aws' gitops/apps/kubecost/values.yaml
