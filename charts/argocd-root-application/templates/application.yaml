@@ -37,8 +37,8 @@ spec:
           value: {{ .Values.sparkWorkloadNamespace | quote }}
         - name: global.airflowLogsBucket
           value: {{ .Values.airflowLogsBucket | quote }}
-        - name: argocdAdminPassword
-          value: {{ .Values.argocdAdminPassword | quote }}
+      valuesObject:
+        argocdAdminPassword: {{ .Values.argocdAdminPassword | quote }}
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
