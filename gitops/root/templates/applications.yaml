@@ -76,7 +76,7 @@ spec:
         airflow:
           createUserJob:
             defaultUser:
-              password: {{ $.Values.argocdAdminPassword | quote }}
+              password: {{ $.Values.adminPassword | quote }}
           config:
             logging:
               remote_logging: "True"

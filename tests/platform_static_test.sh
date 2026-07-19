@@ -121,23 +121,23 @@ if ! grep -R -q 'resource "helm_release" "argocd_root_application"' . --include=
   exit 1
 fi
 
-if ! grep -q 'variable "argocd_admin_password"' "$variables"; then
-  printf 'expected argocd_admin_password input variable\n' >&2
+if ! grep -q 'variable "admin_password"' "$variables"; then
+  printf 'expected admin_password input variable\n' >&2
   exit 1
 fi
 
-if ! grep -A4 'variable "argocd_admin_password"' "$variables" | grep -q 'sensitive   = true'; then
-  printf 'expected argocd_admin_password to be sensitive\n' >&2
+if ! grep -A4 'variable "admin_password"' "$variables" | grep -q 'sensitive   = true'; then
+  printf 'expected admin_password to be sensitive\n' >&2
   exit 1
 fi
 
-if ! grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || ! grep -q 'bcrypt(var.argocd_admin_password)' argocd.tf; then
-  printf 'expected Argo CD helm release to set the admin password from bcrypt(var.argocd_admin_password)\n' >&2
+if ! grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || ! grep -q 'bcrypt(var.admin_password)' argocd.tf; then
+  printf 'expected Argo CD helm release to set the admin password from bcrypt(var.admin_password)\n' >&2
   exit 1
 fi
 
-if ! grep -A4 'output "argocd_admin_password"' "$outputs" | grep -q 'sensitive   = true'; then
-  printf 'expected sensitive argocd_admin_password output\n' >&2
+if ! grep -A4 'output "admin_password"' "$outputs" | grep -q 'sensitive   = true'; then
+  printf 'expected sensitive admin_password output\n' >&2
   exit 1
 fi
 
@@ -180,15 +180,15 @@ if ! grep -R -q 'useHelmHooks: false' gitops/apps/airflow; then
   exit 1
 fi
 
-if ! grep -q 'argocdAdminPassword.*var.argocd_admin_password' argocd.tf; then
-  printf 'expected the root Application values to receive argocd_admin_password\n' >&2
+if ! grep -q 'adminPassword.*var.admin_password' argocd.tf; then
+  printf 'expected the root Application values to receive admin_password\n' >&2
   exit 1
 fi
 
 if ! grep -q 'valuesObject:' charts/argocd-root-application/templates/application.yaml || \
-  ! grep -q 'argocdAdminPassword: {{ .Values.argocdAdminPassword | quote }}' charts/argocd-root-application/templates/application.yaml || \
-  grep -q 'name: argocdAdminPassword' charts/argocd-root-application/templates/application.yaml; then
-  printf 'expected the intermediate root Application chart to forward argocdAdminPassword through valuesObject\n' >&2
+  ! grep -q 'adminPassword: {{ .Values.adminPassword | quote }}' charts/argocd-root-application/templates/application.yaml || \
+  grep -q 'name: adminPassword' charts/argocd-root-application/templates/application.yaml; then
+  printf 'expected the intermediate root Application chart to forward adminPassword through valuesObject\n' >&2
   exit 1
 fi
 
@@ -205,20 +205,20 @@ fi
 
 if ! rendered_application=$(helm template argocd-root-application charts/argocd-root-application \
   --values charts/argocd-root-application/values.yaml \
-  --set-string 'argocdAdminPassword=alpha\,beta'); then
+  --set-string 'adminPassword=alpha\,beta'); then
   printf 'expected intermediate root Application chart to render with a comma-containing password\n' >&2
   exit 1
 fi
 
-if ! grep -Fq 'argocdAdminPassword: "alpha,beta"' <<<"$rendered_application"; then
-  printf 'expected valuesObject to preserve the comma-containing Airflow password\n' >&2
+if ! grep -Fq 'adminPassword: "alpha,beta"' <<<"$rendered_application"; then
+  printf 'expected valuesObject to preserve the comma-containing admin password\n' >&2
   exit 1
 fi
 
-if ! grep -q 'Values.argocdAdminPassword' gitops/root/templates/applications.yaml || \
+if ! grep -q 'Values.adminPassword' gitops/root/templates/applications.yaml || \
   ! grep -q 'createUserJob:' gitops/root/templates/applications.yaml || \
   ! grep -q 'defaultUser:' gitops/root/templates/applications.yaml; then
-  printf 'expected Airflow to use the shared Argo CD admin password\n' >&2
+  printf 'expected Airflow to use the shared admin password\n' >&2
   exit 1
 fi
 

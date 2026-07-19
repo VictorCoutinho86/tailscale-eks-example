@@ -23,7 +23,7 @@ resource "helm_release" "argocd" {
     },
     {
       name  = "configs.secret.argocdServerAdminPassword"
-      value = bcrypt(var.argocd_admin_password)
+      value = bcrypt(var.admin_password)
       type  = "string"
     }
   ]
@@ -56,7 +56,7 @@ resource "helm_release" "argocd_root_application" {
     kubecostAthenaTable              = var.kubecost_athena_table
     kubecostAthenaQueryResultsBucket = var.kubecost_athena_query_results_bucket
     kubecostAthenaWorkgroup          = var.kubecost_athena_workgroup
-    argocdAdminPassword              = var.argocd_admin_password
+    adminPassword                    = var.admin_password
   })]
 
   depends_on = [helm_release.argocd]

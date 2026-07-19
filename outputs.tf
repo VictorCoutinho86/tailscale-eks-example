@@ -74,8 +74,8 @@ output "platform_certificate_arn" {
   value       = aws_acm_certificate_validation.platform.certificate_arn
 }
 
-output "argocd_admin_password" {
-  description = "Password for the Argo CD admin user (login: admin). Retrieve with: terraform output -raw argocd_admin_password"
-  value       = var.argocd_admin_password
+output "admin_password" {
+  description = "Admin password for the Argo CD admin user and Airflow default user (login: admin). Retrieve with: terraform output -raw admin_password"
+  value       = var.admin_password
   sensitive   = true
 }
