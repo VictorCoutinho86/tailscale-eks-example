@@ -103,4 +103,6 @@ module "eks" {
   })
 
   tags = local.tags
+
+  depends_on = [aws_instance.bootstrap]
 }
