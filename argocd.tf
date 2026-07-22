@@ -51,6 +51,7 @@ resource "helm_release" "argocd_root_application" {
     kubecostAthenaTable              = var.kubecost_athena_table
     kubecostAthenaQueryResultsBucket = var.kubecost_athena_query_results_bucket
     kubecostAthenaWorkgroup          = var.kubecost_athena_workgroup
+    cnpgBackupBucket                 = aws_s3_bucket.cnpg_backups.bucket
   })]
 
   depends_on = [helm_release.argocd]

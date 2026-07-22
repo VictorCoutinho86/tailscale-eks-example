@@ -161,14 +161,14 @@ if grep -q 'depends_on.*autoscaling_group' eks.tf; then
   exit 1
 fi
 
-for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero kube-prometheus-stack loki promtail spark-history-server otel-collector; do
+for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki promtail airflow-db spark-history-server otel-collector; do
   if ! grep -R -q "\"name\" \"${app}\"" gitops/root/templates; then
     printf 'expected root app-of-apps to define %s application\n' "$app" >&2
     exit 1
   fi
 done
 
-for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero kube-prometheus-stack loki promtail spark-history-server otel-collector; do
+for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki promtail airflow-db spark-history-server otel-collector; do
   if ! test -e "gitops/apps/${app_dir}" && ! test -e "gitops/${app_dir}"; then
     printf 'expected GitOps source for %s\n' "$app_dir" >&2
     exit 1
@@ -501,5 +501,25 @@ fi
 
 if ! test -f observability.tf; then
   printf 'expected observability Terraform infrastructure\n' >&2
+  exit 1
+fi
+
+if ! test -f database.tf; then
+  printf 'expected CloudNativePG Terraform infrastructure\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/apps/airflow-db/templates/cluster.yaml; then
+  printf 'expected airflow-db CloudNativePG Cluster manifest\n' >&2
+  exit 1
+fi
+
+if ! grep -A1 'postgresql:' gitops/apps/airflow/values.yaml | grep -q 'enabled: false'; then
+  printf 'expected Airflow bundled PostgreSQL disabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'airflow-db-rw.airflow.svc' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow to connect to CloudNativePG cluster\n' >&2
   exit 1
 fi

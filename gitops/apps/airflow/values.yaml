@@ -3,6 +3,19 @@ airflow:
   jwtSecretName: airflow-jwt-secret
   apiSecretKeySecretName: airflow-api-secret-key
   executor: KubernetesExecutor
+  postgresql:
+    enabled: false
+  data:
+    metadataConnection:
+      user: airflow
+      pass: ""
+      host: airflow-db-rw.airflow.svc
+      port: 5432
+      database: airflow
+      existingSecret: airflow-db-credentials
+      existingSecretKeys:
+        user: username
+        pass: password
   rbac:
     create: true
   dags:

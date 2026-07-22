@@ -131,6 +131,33 @@ spec:
 EOF
 
 echo ""
+echo "==> Sealing Airflow DB credentials..."
+
+AIRFLOW_DB_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
+
+cat > gitops/apps/airflow-db/templates/db-credentials-sealed-secret.yaml <<EOF
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: airflow-db-credentials
+  namespace: ${AIRFLOW_NS}
+  annotations:
+    sealedsecrets.bitnami.com/namespace-wide: "true"
+spec:
+  encryptedData:
+    username: $(seal "$AIRFLOW_NS" "airflow-db-credentials" "username" "airflow")
+    password: $(seal "$AIRFLOW_NS" "airflow-db-credentials" "password" "$AIRFLOW_DB_PASSWORD")
+  template:
+    metadata:
+      name: airflow-db-credentials
+      namespace: ${AIRFLOW_NS}
+      labels:
+        tier: airflow
+        app.kubernetes.io/part-of: airflow
+    type: kubernetes.io/basic-auth
+EOF
+
+echo ""
 echo "==> Sealing Argo CD secret..."
 
 cat > gitops/apps/argocd/templates/argocd-secret-sealed.yaml <<EOF
@@ -164,6 +191,7 @@ echo "==> Done!"
 echo ""
 echo "Generated passwords (store securely):"
 echo "  Airflow admin:  ${AIRFLOW_ADMIN_PASSWORD}"
+echo "  Airflow DB:     ${AIRFLOW_DB_PASSWORD}"
 echo "  Argo CD admin:  ${ARGOCD_ADMIN_PASSWORD}"
 echo ""
 echo "SealedSecret manifests updated. Verify with: git diff gitops/"
