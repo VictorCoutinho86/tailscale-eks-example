@@ -1,0 +1,9 @@
+apiVersion: v2
+name: promtail-platform
+description: Platform-managed Promtail
+type: application
+version: 0.1.0
+dependencies:
+  - name: promtail
+    version: 6.16.6
+    repository: https://grafana.github.io/helm-charts

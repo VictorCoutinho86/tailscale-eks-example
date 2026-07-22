@@ -1,0 +1,51 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: platform
+spec:
+  groups:
+    - name: platform.rules
+      rules:
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.node }} has been NotReady for 5 minutes"
+
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+
+        - alert: PVCUsageHigh
+          expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is over 85% full"
+
+        - alert: KarpenterCapacityLimit
+          expr: karpenter_cloudprovider_instance_type_offering_available == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Karpenter cannot provision new instances (no capacity available)"
+
+        - alert: VeleroBackupFailed
+          expr: velero_backup_failure_total > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Velero backup has failed"

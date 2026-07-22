@@ -1,0 +1,57 @@
+kube-prometheus-stack:
+  namespaceOverride: monitoring
+
+  defaultRules:
+    create: true
+    rules:
+      alertmanager: true
+      etcd: false
+      kubeScheduler: false
+      kubeControllerManager: false
+      kubernetesSystem: true
+      kubeProxy: false
+      node: true
+      prometheus: true
+      prometheusOperator: true
+
+  grafana:
+    enabled: true
+    ingress:
+      enabled: true
+      ingressClassName: alb
+      hosts:
+        - monitoring.CHANGEME
+      annotations:
+        alb.ingress.kubernetes.io/scheme: internal
+        alb.ingress.kubernetes.io/group.name: platform
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+        alb.ingress.kubernetes.io/ssl-redirect: "443"
+    admin:
+      existingSecret: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+
+  prometheus:
+    prometheusSpec:
+      retention: 15d
+      retentionSize: 50GB
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 2Gi
+          cpu: 1
+
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      replicas: 1
+
+  nodeExporter:
+    enabled: true
+
+  kubeStateMetrics:
+    enabled: true

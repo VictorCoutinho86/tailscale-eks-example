@@ -1,6 +1,4 @@
 kubecost:
-  # Network-costs runs a DaemonSet on every node; on the small default nodes it
-  # does not fit and leaves pods pending. Disabled for this MVP cluster.
   networkCosts:
     enabled: true
   serviceAccount:

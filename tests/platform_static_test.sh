@@ -161,14 +161,14 @@ if grep -q 'depends_on.*autoscaling_group' eks.tf; then
   exit 1
 fi
 
-for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets; do
+for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero kube-prometheus-stack loki promtail spark-history-server otel-collector; do
   if ! grep -R -q "\"name\" \"${app}\"" gitops/root/templates; then
     printf 'expected root app-of-apps to define %s application\n' "$app" >&2
     exit 1
   fi
 done
 
-for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets; do
+for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero kube-prometheus-stack loki promtail spark-history-server otel-collector; do
   if ! test -e "gitops/apps/${app_dir}" && ! test -e "gitops/${app_dir}"; then
     printf 'expected GitOps source for %s\n' "$app_dir" >&2
     exit 1
@@ -466,5 +466,40 @@ fi
 
 if ! grep -q 'use_lockfile *= *true' backend.tf; then
   printf 'expected S3 backend with native locking\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/base/templates/pdbs.yaml; then
+  printf 'expected PodDisruptionBudget manifests\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/base/templates/alert-rules.yaml; then
+  printf 'expected alerting rules\n' >&2
+  exit 1
+fi
+
+if ! test -f gitops/base/templates/network-policies.yaml; then
+  printf 'expected network policies\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'ENABLE_NETWORK_POLICY.*true' eks.tf; then
+  printf 'expected VPC CNI network policy enabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'ssl-policy.*TLS13' gitops/base/templates/ingresses.yaml; then
+  printf 'expected TLS 1.2 minimum policy on all ingresses\n' >&2
+  exit 1
+fi
+
+if ! test -f velero.tf; then
+  printf 'expected Velero Terraform infrastructure\n' >&2
+  exit 1
+fi
+
+if ! test -f observability.tf; then
+  printf 'expected observability Terraform infrastructure\n' >&2
   exit 1
 fi

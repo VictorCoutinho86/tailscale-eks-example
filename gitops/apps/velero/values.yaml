@@ -1,0 +1,45 @@
+velero:
+  initContainers:
+    - name: velero-plugin-for-aws
+      image: velero/velero-plugin-for-aws:v1.12.0
+      volumeMounts:
+        - name: plugins
+          mountPath: /target
+
+  credentials:
+    useSecret: false
+
+  configuration:
+    backupStorageLocation:
+      - name: default
+        provider: aws
+        bucket: tailscale-eks-example-velero-CHANGEME
+        config:
+          region: us-east-1
+    volumeSnapshotLocation:
+      - name: default
+        provider: aws
+        config:
+          region: us-east-1
+
+  serviceAccount:
+    server:
+      create: true
+      name: velero-server
+      annotations:
+        eks.amazonaws.com/role-arn: CHANGEME
+
+  schedules:
+    daily-full:
+      schedule: "0 2 * * *"
+      template:
+        includedNamespaces:
+          - "*"
+        ttl: 720h
+    hourly-critical:
+      schedule: "0 * * * *"
+      template:
+        includedNamespaces:
+          - airflow
+          - argocd
+        ttl: 168h

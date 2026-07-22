@@ -1,0 +1,9 @@
+apiVersion: v2
+name: spark-history-server-platform
+description: Platform-managed Spark History Server
+type: application
+version: 0.1.0
+dependencies:
+  - name: spark-history-server
+    version: 2.5.1
+    repository: https://kubeflow.github.io/spark-operator

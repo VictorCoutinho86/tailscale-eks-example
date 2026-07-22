@@ -142,7 +142,7 @@ Do not reintroduce these unless the architecture is explicitly changed:
 - `gitops/root/`: App-of-apps root Helm chart.
 - `gitops/base/`: Shared platform base resources.
 - `gitops/apps/`: Service Helm chart wrappers.
-- `templates/argocd-root-application.yaml.tftpl`: Terraform-rendered root Application manifest.
+- `charts/argocd-root-application/`: Helm chart that renders the root Argo CD Application.
 - `tests/platform_static_test.sh`: regression checks for the two-app boundary, ALB, ACM/Route 53, ExternalDNS, Pod Identity, and removed old path.
 - `tests/bootstrap_static_test.sh`: regression checks for subnet-router-only bootstrap behavior.
 - `docs/architecture_diagram.py`: source for the architecture diagram.

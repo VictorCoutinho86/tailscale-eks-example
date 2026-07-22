@@ -8,6 +8,9 @@ module "eks" {
   endpoint_public_access  = false
   endpoint_private_access = true
 
+  create_cloudwatch_log_group            = true
+  cloudwatch_log_group_retention_in_days = 90
+
   create_kms_key = false
   encryption_config = {
     resources        = ["secrets"]
@@ -28,6 +31,7 @@ module "eks" {
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
           WARM_PREFIX_TARGET       = "1"
+          ENABLE_NETWORK_POLICY    = "true"
         }
       })
     }

@@ -1,0 +1,26 @@
+spark-history-server:
+  namespaceOverride: spark-history
+
+  enabled: true
+
+  serviceAccount:
+    create: true
+    name: spark-history
+    annotations:
+      eks.amazonaws.com/role-arn: CHANGEME
+
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    hosts:
+      - spark-history.CHANGEME
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/group.name: platform
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+  sparkConf:
+    spark.eventLog.enabled: "true"
+    spark.eventLog.dir: s3://tailscale-eks-example-spark-events-CHANGEME/spark-events/
+    spark.history.fs.logDirectory: s3://tailscale-eks-example-spark-events-CHANGEME/spark-events/

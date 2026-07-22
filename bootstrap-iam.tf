@@ -19,11 +19,11 @@ resource "aws_security_group" "bootstrap" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "Allow all traffic from the VPC for NAT forwarding and SSH debug"
+    description = "Allow all traffic from private subnets for NAT forwarding and SSH debug"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = local.private_subnets
   }
 
   egress {
