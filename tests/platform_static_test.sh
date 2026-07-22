@@ -444,3 +444,33 @@ if ! grep -q '      subnet_ids = module.vpc.private_subnets' eks.tf; then
   printf 'expected default node group to use private subnets\n' >&2
   exit 1
 fi
+
+if ! grep -q 'resource "aws_kms_key" "eks_secrets"' kms.tf; then
+  printf 'expected KMS key for EKS secrets encryption\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'enable_key_rotation *= *true' kms.tf; then
+  printf 'expected KMS key rotation enabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'create_kms_key *= *false' eks.tf; then
+  printf 'expected EKS module to use external KMS key\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'encryption_config' eks.tf; then
+  printf 'expected EKS cluster encryption config\n' >&2
+  exit 1
+fi
+
+if ! test -f backend.tf; then
+  printf 'expected S3 backend configuration\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'use_lockfile *= *true' backend.tf; then
+  printf 'expected S3 backend with native locking\n' >&2
+  exit 1
+fi

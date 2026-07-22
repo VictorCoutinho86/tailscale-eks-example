@@ -8,6 +8,12 @@ module "eks" {
   endpoint_public_access  = false
   endpoint_private_access = true
 
+  create_kms_key = false
+  encryption_config = {
+    resources        = ["secrets"]
+    provider_key_arn = aws_kms_key.eks_secrets.arn
+  }
+
   enable_cluster_creator_admin_permissions = false
 
   vpc_id                   = module.vpc.vpc_id
