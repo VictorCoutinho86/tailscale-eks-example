@@ -36,17 +36,17 @@ if grep -q '^export TAILSCALE_SUBNET_ROUTER_AUTH_KEY=' "$bootstrap"; then
   exit 1
 fi
 
-if ! grep -q -- '--auth-key="\$TAILSCALE_SUBNET_ROUTER_AUTH_KEY"' "$bootstrap"; then
+if ! grep -qF -- '--auth-key="$TAILSCALE_SUBNET_ROUTER_AUTH_KEY"' "$bootstrap"; then
   printf 'expected tailscale up to use the subnet router auth key\n' >&2
   exit 1
 fi
 
-if ! grep -q -- '--hostname="\$TAILSCALE_SUBNET_ROUTER_HOSTNAME"' "$bootstrap"; then
+if ! grep -qF -- '--hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME' "$bootstrap"; then
   printf 'expected tailscale up to set the subnet router hostname\n' >&2
   exit 1
 fi
 
-if ! grep -q -- '--advertise-routes="\$VPC_CIDR,${vpc_cidr_resolver}/32"' "$bootstrap"; then
+if ! grep -qF -- '--advertise-routes="$VPC_CIDR,${vpc_cidr_resolver}/32"' "$bootstrap"; then
   printf 'expected bootstrap to advertise the VPC CIDR as a Tailscale subnet route\n' >&2
   exit 1
 fi
@@ -61,13 +61,53 @@ if ! grep -q 'tailscale_subnet_router_auth_key' "$bootstrap_tf"; then
   exit 1
 fi
 
-if grep -q 'user_data_replace_on_change = true' "$bootstrap_tf"; then
-  printf 'expected persistent subnet router user_data changes not to force instance replacement\n' >&2
+if ! grep -q 'resource "aws_launch_template" "subnet_router"' "$bootstrap_tf"; then
+  printf 'expected subnet router launch template\n' >&2
   exit 1
 fi
 
-if ! grep -q 'ignore_changes = \[user_data\]' "$bootstrap_tf"; then
-  printf 'expected persistent subnet router to ignore first-boot user_data drift\n' >&2
+if ! grep -q 'resource "aws_autoscaling_group" "subnet_router"' "$bootstrap_tf"; then
+  printf 'expected subnet router Auto Scaling Group\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'min_size *= *3' "$bootstrap_tf"; then
+  printf 'expected ASG min_size of 3 for per-AZ subnet router instances\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'desired_capacity *= *3' "$bootstrap_tf"; then
+  printf 'expected ASG desired_capacity of 3 for per-AZ subnet router instances\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'mixed_instances_policy' "$bootstrap_tf"; then
+  printf 'expected ASG to use a mixed instances policy for spot diversification\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'spot_allocation_strategy *= *"price-capacity-optimized"' "$bootstrap_tf"; then
+  printf 'expected spot allocation strategy to balance price and capacity\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'on_demand_percentage_above_base_capacity *= *0' "$bootstrap_tf"; then
+  printf 'expected all subnet router instances to be spot\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'instance_type = "t3.micro"' "$bootstrap_tf"; then
+  printf 'expected t3.micro in spot instance type overrides\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'capacity_rebalance *= *true' "$bootstrap_tf"; then
+  printf 'expected capacity_rebalance for zero-downtime spot instance replacement\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'instance_type = "t3.nano"' "$bootstrap_tf"; then
+  printf 'expected t3.nano in spot instance type overrides\n' >&2
   exit 1
 fi
 

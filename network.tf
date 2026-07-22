@@ -45,14 +45,6 @@ module "vpc_endpoints" {
   tags = local.tags
 }
 
-resource "aws_route" "private_nat_instance" {
-  count = var.enable_bootstrap_instance ? length(module.vpc.private_route_table_ids) : 0
-
-  route_table_id         = module.vpc.private_route_table_ids[count.index]
-  destination_cidr_block = "0.0.0.0/0"
-  network_interface_id   = aws_instance.bootstrap[0].primary_network_interface_id
-}
-
 resource "terraform_data" "private_subnet_nat_precondition" {
   input = var.enable_bootstrap_instance
 

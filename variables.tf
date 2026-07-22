@@ -127,7 +127,7 @@ variable "admin_password" {
 }
 
 variable "bootstrap_instance_type" {
-  description = "Instance type for the bootstrap EC2 subnet router instance."
+  description = "Fallback instance type for the subnet router launch template."
   type        = string
   default     = "t3.micro"
 }

@@ -83,3 +83,37 @@ resource "aws_iam_role_policy" "bootstrap_eks_discovery" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "bootstrap_nat_routing" {
+  name = "${local.name}-bootstrap-nat-routing"
+  role = aws_iam_role.bootstrap.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:ModifyInstanceAttribute",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:ResourceTag/Project" = local.name
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:ReplaceRoute",
+          "ec2:CreateRoute",
+        ]
+        Resource = [
+          for rtb_id in module.vpc.private_route_table_ids :
+          "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:route-table/${rtb_id}"
+        ]
+      }
+    ]
+  })
+}

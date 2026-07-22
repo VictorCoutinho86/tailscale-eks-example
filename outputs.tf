@@ -40,8 +40,8 @@ output "tailscale_subnet_route" {
 }
 
 output "bootstrap_instance_id" {
-  description = "Bootstrap subnet router instance ID when enabled."
-  value       = try(aws_instance.bootstrap[0].id, null)
+  description = "Subnet router Auto Scaling Group name when enabled."
+  value       = try(aws_autoscaling_group.subnet_router[0].name, null)
 }
 
 output "karpenter_queue_name" {

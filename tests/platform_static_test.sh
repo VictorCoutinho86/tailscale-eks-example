@@ -156,6 +156,16 @@ if ! grep -q 'resources-finalizer.argocd.argoproj.io' charts/argocd-root-applica
   exit 1
 fi
 
+if grep -q 'depends_on = \[aws_instance.bootstrap\]' eks.tf; then
+  printf 'expected the EKS module not to depend on the bootstrap instance\n' >&2
+  exit 1
+fi
+
+if grep -q 'depends_on.*autoscaling_group' eks.tf; then
+  printf 'expected EKS module not to use module-level depends_on (breaks count propagation in managed node group data sources)\n' >&2
+  exit 1
+fi
+
 for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets; do
   if ! grep -R -q "\"name\" \"${app}\"" gitops/root/templates; then
     printf 'expected root app-of-apps to define %s application\n' "$app" >&2
@@ -395,13 +405,8 @@ if grep -q 'enable_nat_gateway = true' network.tf; then
   exit 1
 fi
 
-if ! grep -q 'resource "aws_route" "private_nat_instance"' network.tf; then
-  printf 'expected private default route through the subnet-router ENI\n' >&2
-  exit 1
-fi
-
-if ! grep -q 'network_interface_id   = aws_instance.bootstrap\[0\].primary_network_interface_id' network.tf; then
-  printf 'expected private default route to target the bootstrap primary ENI\n' >&2
+if grep -q 'resource "aws_route" "private_nat_instance"' network.tf; then
+  printf 'expected per-AZ NAT routes to be managed by cloud-init, not Terraform aws_route\n' >&2
   exit 1
 fi
 
@@ -410,8 +415,18 @@ if ! grep -q 'route_table_ids = module.vpc.private_route_table_ids' network.tf; 
   exit 1
 fi
 
-if ! grep -q 'source_dest_check *= *false' tailscale-bootstrap.tf; then
-  printf 'expected source_dest_check=false on the NAT instance\n' >&2
+if ! grep -q 'modify-instance-attribute.*--no-source-dest-check' "$bootstrap"; then
+  printf 'expected cloud-init to disable source/dest check via AWS CLI\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'replace-route' "$bootstrap"; then
+  printf 'expected cloud-init to configure per-AZ NAT route via replace-route\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'private_route_table_by_az' "$bootstrap"; then
+  printf 'expected cloud-init to receive AZ-to-route-table mapping\n' >&2
   exit 1
 fi
 
