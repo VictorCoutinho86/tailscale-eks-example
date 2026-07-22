@@ -1,14 +1,4 @@
 airflow:
-  # Static keys keep Argo CD client-side renders deterministic. Without them the
-  # chart generates randAlphaNum values on every sync, rotating keys and breaking
-  # encrypted connections. These are dev/example keys: rotate and manage them
-  # through an external secrets store before any production use.
-  fernetKey: lf5ACTMLLKWof80nMQTCx1rmE6KTu_LDQJWaZ5nfJMs=
-  jwtSecret: jV3LGNX_GG3Y_L05RgK79VV2kQlJ9dUzJSYgQ1_slgzJ92Mwjthqb-BQF0w08SpS
-  apiSecretKey: hCWaIYLP0sdA2X8e7aVFsm-PwWdAr1_zD4Q_khIIx1o
-  # The chart's own fernet-key secret is annotated as a helm pre-install hook,
-  # which Argo CD does not apply as a regular resource. The wrapper chart renders
-  # this secret instead (templates/fernet-key-secret.yaml).
   fernetKeySecretName: airflow-fernet-key
   jwtSecretName: airflow-jwt-secret
   apiSecretKeySecretName: airflow-api-secret-key

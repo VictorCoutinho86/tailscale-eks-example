@@ -76,7 +76,8 @@ spec:
         airflow:
           createUserJob:
             defaultUser:
-              password: {{ $.Values.adminPassword | quote }}
+              existingSecret: airflow-admin-credentials
+              existingSecretKey: admin-password
           config:
             logging:
               remote_logging: "True"

@@ -120,12 +120,6 @@ variable "enable_argocd_bootstrap" {
   default     = true
 }
 
-variable "admin_password" {
-  description = "Initial admin password shared by the Argo CD admin user and the Airflow default user. Stored in Terraform state; keep terraform.tfvars and state private."
-  type        = string
-  sensitive   = true
-}
-
 variable "bootstrap_instance_type" {
   description = "Fallback instance type for the subnet router launch template."
   type        = string

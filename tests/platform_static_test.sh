@@ -121,23 +121,18 @@ if ! grep -R -q 'resource "helm_release" "argocd_root_application"' . --include=
   exit 1
 fi
 
-if ! grep -q 'variable "admin_password"' "$variables"; then
-  printf 'expected admin_password input variable\n' >&2
+if grep -q 'variable "admin_password"' "$variables"; then
+  printf 'expected admin_password variable to be removed (secrets now managed by Sealed Secrets)\n' >&2
   exit 1
 fi
 
-if ! grep -A4 'variable "admin_password"' "$variables" | grep -q 'sensitive   = true'; then
-  printf 'expected admin_password to be sensitive\n' >&2
+if grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || grep -q 'bcrypt(var.admin_password)' argocd.tf; then
+  printf 'expected Argo CD admin password to be removed from Terraform (now managed by SealedSecret)\n' >&2
   exit 1
 fi
 
-if ! grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || ! grep -q 'bcrypt(var.admin_password)' argocd.tf; then
-  printf 'expected Argo CD helm release to set the admin password from bcrypt(var.admin_password)\n' >&2
-  exit 1
-fi
-
-if ! grep -A4 'output "admin_password"' "$outputs" | grep -q 'sensitive   = true'; then
-  printf 'expected sensitive admin_password output\n' >&2
+if grep -q 'output "admin_password"' "$outputs"; then
+  printf 'expected admin_password output to be removed\n' >&2
   exit 1
 fi
 
@@ -190,15 +185,13 @@ if ! grep -R -q 'useHelmHooks: false' gitops/apps/airflow; then
   exit 1
 fi
 
-if ! grep -q 'adminPassword.*var.admin_password' argocd.tf; then
-  printf 'expected the root Application values to receive admin_password\n' >&2
+if grep -q 'adminPassword.*var.admin_password' argocd.tf; then
+  printf 'expected the root Application values to stop receiving admin_password\n' >&2
   exit 1
 fi
 
-if ! grep -q 'valuesObject:' charts/argocd-root-application/templates/application.yaml || \
-  ! grep -q 'adminPassword: {{ .Values.adminPassword | quote }}' charts/argocd-root-application/templates/application.yaml || \
-  grep -q 'name: adminPassword' charts/argocd-root-application/templates/application.yaml; then
-  printf 'expected the intermediate root Application chart to forward adminPassword through valuesObject\n' >&2
+if grep -q 'adminPassword:' charts/argocd-root-application/templates/application.yaml; then
+  printf 'expected adminPassword to be removed from the intermediate root Application chart\n' >&2
   exit 1
 fi
 
@@ -208,27 +201,13 @@ if ! grep -Fq 'name: global.clusterName' charts/argocd-root-application/template
   exit 1
 fi
 
-if ! command -v helm >/dev/null 2>&1; then
-  printf 'expected local helm binary for Airflow password transport regression coverage\n' >&2
+if grep -q 'Values.adminPassword' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow to use SealedSecret instead of adminPassword from values\n' >&2
   exit 1
 fi
 
-if ! rendered_application=$(helm template argocd-root-application charts/argocd-root-application \
-  --values charts/argocd-root-application/values.yaml \
-  --set-string 'adminPassword=alpha\,beta'); then
-  printf 'expected intermediate root Application chart to render with a comma-containing password\n' >&2
-  exit 1
-fi
-
-if ! grep -Fq 'adminPassword: "alpha,beta"' <<<"$rendered_application"; then
-  printf 'expected valuesObject to preserve the comma-containing admin password\n' >&2
-  exit 1
-fi
-
-if ! grep -q 'Values.adminPassword' gitops/root/templates/applications.yaml || \
-  ! grep -q 'createUserJob:' gitops/root/templates/applications.yaml || \
-  ! grep -q 'defaultUser:' gitops/root/templates/applications.yaml; then
-  printf 'expected Airflow to use the shared admin password\n' >&2
+if ! grep -q 'existingSecret: airflow-admin-credentials' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow createUserJob to reference existing airflow-admin-credentials secret\n' >&2
   exit 1
 fi
 
@@ -295,35 +274,50 @@ if ! test -f gitops/apps/kubecost/charts/kubecost-3.2.1.tgz; then
 fi
 
 for key in fernetKey jwtSecret apiSecretKey; do
-  if ! grep -E "^  ${key}: ['\"]?[A-Za-z0-9+/=_-]+" gitops/apps/airflow/values.yaml >/dev/null; then
-    printf 'expected airflow values to define a static %s\n' "$key" >&2
+  if grep -E "^  ${key}:" gitops/apps/airflow/values.yaml >/dev/null; then
+    printf 'expected airflow values to stop defining plaintext %s (now managed by SealedSecret)\n' "$key" >&2
     exit 1
   fi
 done
 
-if ! grep -q 'fernetKeySecretName: airflow-fernet-key' gitops/apps/airflow/values.yaml; then
-  printf 'expected airflow to reference an externally managed fernet key secret (chart fernet secret uses a helm hook Argo CD cannot apply)\n' >&2
+for sealed in fernet-key-sealed-secret jwt-sealed-secret api-secret-key-sealed-secret admin-password-sealed-secret; do
+  if ! test -f "gitops/apps/airflow/templates/${sealed}.yaml"; then
+    printf 'expected airflow wrapper chart to render SealedSecret %s\n' "$sealed" >&2
+    exit 1
+  fi
+done
+
+for old_secret in fernet-key-secret jwt-secret api-secret-key-secret; do
+  if test -f "gitops/apps/airflow/templates/${old_secret}.yaml"; then
+    printf 'expected old plaintext Secret template %s to be replaced by SealedSecret\n' "$old_secret" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'sealedsecrets.bitnami.com/namespace-wide' gitops/apps/airflow/templates/fernet-key-sealed-secret.yaml; then
+  printf 'expected SealedSecret to use namespace-wide scope\n' >&2
   exit 1
 fi
 
-if ! test -f gitops/apps/airflow/templates/fernet-key-secret.yaml; then
-  printf 'expected airflow wrapper chart to render the fernet key secret\n' >&2
+if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
+  printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2
   exit 1
 fi
 
-for ref in 'jwtSecretName: airflow-jwt-secret' 'apiSecretKeySecretName: airflow-api-secret-key'; do
-  if ! grep -q "$ref" gitops/apps/airflow/values.yaml; then
-    printf 'expected airflow values to reference wrapper-managed secret via %s\n' "$ref" >&2
-    exit 1
-  fi
-done
+if ! test -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml; then
+  printf 'expected Argo CD admin SealedSecret\n' >&2
+  exit 1
+fi
 
-for tpl in jwt-secret api-secret-key-secret; do
-  if ! test -f "gitops/apps/airflow/templates/${tpl}.yaml"; then
-    printf 'expected airflow wrapper chart to render %s.yaml\n' "$tpl" >&2
-    exit 1
-  fi
-done
+if ! grep -q 'createSecret: false' gitops/apps/argocd/values.yaml; then
+  printf 'expected Argo CD chart to disable secret creation (managed by SealedSecret)\n' >&2
+  exit 1
+fi
+
+if ! test -f scripts/seal-secrets.sh; then
+  printf 'expected seal-secrets.sh helper script\n' >&2
+  exit 1
+fi
 
 if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
   printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2

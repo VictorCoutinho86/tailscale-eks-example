@@ -48,8 +48,6 @@ spec:
           value: {{ .Values.kubecostAthenaQueryResultsBucket | quote }}
         - name: global.kubecostAthenaWorkgroup
           value: {{ .Values.kubecostAthenaWorkgroup | quote }}
-      valuesObject:
-        adminPassword: {{ .Values.adminPassword | quote }}
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

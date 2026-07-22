@@ -73,9 +73,3 @@ output "platform_certificate_arn" {
   description = "Validated ACM wildcard certificate ARN for the platform ALB."
   value       = aws_acm_certificate_validation.platform.certificate_arn
 }
-
-output "admin_password" {
-  description = "Admin password for the Argo CD admin user and Airflow default user (login: admin). Retrieve with: terraform output -raw admin_password"
-  value       = var.admin_password
-  sensitive   = true
-}

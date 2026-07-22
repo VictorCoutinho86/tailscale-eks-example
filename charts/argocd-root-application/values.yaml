@@ -14,4 +14,3 @@ kubecostAthenaDatabase: athenacurcfn_example
 kubecostAthenaTable: cur_example
 kubecostAthenaQueryResultsBucket: aws-athena-query-results-example
 kubecostAthenaWorkgroup: primary
-adminPassword: ""
