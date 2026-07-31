@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 # seal-secrets.sh — Generate and encrypt secrets for the platform using kubeseal.
 #
 # Prerequisites:
@@ -10,8 +12,8 @@ set -euo pipefail
 #
 # Usage: bash scripts/seal-secrets.sh
 
-SEALED_SECRETS_NS="kube-system"
-SEALED_SECRETS_CONTROLLER="sealed-secrets"
+SEALED_SECRETS_NS="sealed-secrets"
+SEALED_SECRETS_CONTROLLER="sealed-secrets-controller"
 
 echo "==> Checking prerequisites..."
 command -v kubeseal >/dev/null 2>&1 || { echo "ERROR: kubeseal not found. Install: brew install kubeseal"; exit 1; }
@@ -26,7 +28,7 @@ kubeseal --fetch-cert \
 
 seal() {
   local namespace="$1" name="$2" key="$3" value="$4"
-  echo "    ${namespace}/${name} :: ${key}"
+  echo "    ${namespace}/${name} :: ${key}" >&2
   echo -n "$value" | kubeseal --raw --name "$name" --namespace "$namespace" --scope namespace-wide --cert /tmp/sealed-secrets-cert.pem
 }
 
@@ -187,6 +189,16 @@ EOF
 rm -f /tmp/sealed-secrets-cert.pem
 
 echo ""
+echo "==> Applying SealedSecret manifests..."
+kubectl apply \
+  -f gitops/apps/airflow/templates/fernet-key-sealed-secret.yaml \
+  -f gitops/apps/airflow/templates/jwt-sealed-secret.yaml \
+  -f gitops/apps/airflow/templates/api-secret-key-sealed-secret.yaml \
+  -f gitops/apps/airflow/templates/admin-password-sealed-secret.yaml \
+  -f gitops/apps/airflow-db/templates/db-credentials-sealed-secret.yaml \
+  -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml
+
+echo ""
 echo "==> Done!"
 echo ""
 echo "Generated passwords (store securely):"
@@ -194,7 +206,6 @@ echo "  Airflow admin:  ${AIRFLOW_ADMIN_PASSWORD}"
 echo "  Airflow DB:     ${AIRFLOW_DB_PASSWORD}"
 echo "  Argo CD admin:  ${ARGOCD_ADMIN_PASSWORD}"
 echo ""
-echo "SealedSecret manifests updated. Verify with: git diff gitops/"
+echo "SealedSecret manifests updated and applied. Verify with: git diff gitops/"
 echo ""
-echo "After commit, Argo CD will sync and the Sealed Secrets controller"
-echo "will decrypt and create the target Kubernetes Secrets."
+echo "The Sealed Secrets controller will decrypt and create the target Kubernetes Secrets."
