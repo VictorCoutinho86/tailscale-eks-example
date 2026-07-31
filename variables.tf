@@ -145,7 +145,7 @@ variable "airflow_task_policy_statements" {
 }
 
 variable "airflow_logs_bucket" {
-  description = "Existing S3 bucket where Airflow stores remote task logs under the airflow/logs prefix."
+  description = "Existing S3 bucket where Airflow stores remote task logs and oversized XCom payloads."
   type        = string
 }
 

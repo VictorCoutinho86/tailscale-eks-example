@@ -78,6 +78,8 @@ airflow:
       value: git://https%3A%2F%2Fgithub.com%2FVictorCoutinho86%2Fdags.git
     - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
       value: "non-sensitive-only"
+    - name: _PIP_ADDITIONAL_REQUIREMENTS
+      value: "apache-airflow-providers-amazon[s3fs]"
   statsd:
     enabled: true
   config:

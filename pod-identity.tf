@@ -81,7 +81,7 @@ module "airflow_task_pod_identity" {
   policy_statements = concat(
     var.airflow_task_policy_statements,
     local.airflow_ebs_cleanup_policy_statements,
-    local.airflow_s3_log_policy_statements,
+    local.airflow_s3_policy_statements,
   )
 
   associations = {

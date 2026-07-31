@@ -87,10 +87,16 @@ spec:
               existingSecret: airflow-admin-credentials
               existingSecretKey: admin-password
           config:
+            core:
+              xcom_backend: airflow.providers.common.io.xcom.backend.XComObjectStorageBackend
             logging:
               remote_logging: "True"
               remote_base_log_folder: {{ printf "s3://%s/airflow/logs" $.Values.global.airflowLogsBucket | quote }}
               remote_log_conn_id: aws_default
+            common.io:
+              xcom_objectstorage_path: {{ printf "s3://aws_default@%s/airflow/xcom" $.Values.global.airflowLogsBucket | quote }}
+              xcom_objectstorage_threshold: "1048576"
+              xcom_objectstorage_compression: gzip
 {{ else if eq $app.name "kubecost" }}
         kubecost:
           global:

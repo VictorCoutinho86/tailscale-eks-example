@@ -216,6 +216,29 @@ if ! grep -q 'AIRFLOW__WEBSERVER__EXPOSE_CONFIG' gitops/apps/airflow/values.yaml
   exit 1
 fi
 
+if ! grep -q '_PIP_ADDITIONAL_REQUIREMENTS' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'apache-airflow-providers-amazon\[s3fs\]' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow to install the S3-capable XCom object storage dependencies\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'xcom_backend:' gitops/root/templates/applications.yaml || \
+  ! grep -q 'xcom_objectstorage_path:' gitops/root/templates/applications.yaml || \
+  ! grep -q 'xcom_objectstorage_threshold:' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow XCom object storage backend to be configured through GitOps\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq 's3:::${var.airflow_logs_bucket}/airflow/xcom/*' locals.tf; then
+  printf 'expected Airflow Pod Identity S3 policy to allow the Airflow XCom object storage prefix\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq 's3://aws_default@%s/airflow/xcom' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow XCom object storage path to use the shared Airflow bucket prefix\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'airflow_ebs_cleanup_policy_statements' locals.tf || \
   ! grep -q 'ec2:DescribeVolumes' locals.tf || \
   ! grep -q 'ec2:DeleteVolume' locals.tf; then

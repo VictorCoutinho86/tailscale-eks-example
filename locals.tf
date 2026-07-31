@@ -21,21 +21,31 @@ locals {
 
   tailscale_subnet_router_hostname = "${local.name}-subnet-router"
 
-  airflow_s3_log_policy_statements = [
+  airflow_s3_policy_statements = [
     {
-      sid       = "AirflowRemoteLogsList"
+      sid       = "AirflowS3List"
       actions   = ["s3:ListBucket"]
       resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.airflow_logs_bucket}"]
       condition = [{
         test     = "StringLike"
         variable = "s3:prefix"
-        values   = ["airflow/logs", "airflow/logs/*"]
+        values = [
+          "airflow/logs",
+          "airflow/logs/*",
+          "airflow/xcom",
+          "airflow/xcom/*",
+        ]
       }]
     },
     {
       sid       = "AirflowRemoteLogsObjects"
       actions   = ["s3:GetObject", "s3:PutObject"]
       resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.airflow_logs_bucket}/airflow/logs/*"]
+    },
+    {
+      sid       = "AirflowXComObjects"
+      actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+      resources = ["arn:${data.aws_partition.current.partition}:s3:::${var.airflow_logs_bucket}/airflow/xcom/*"]
     }
   ]
 
