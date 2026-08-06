@@ -4,6 +4,9 @@ module "eks" {
 
   name               = local.name
   kubernetes_version = var.cluster_version
+  ip_family          = "ipv6"
+
+  create_cni_ipv6_iam_policy = true
 
   endpoint_public_access  = false
   endpoint_private_access = true

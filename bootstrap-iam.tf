@@ -1,10 +1,10 @@
-data "aws_ami" "bootstrap_al2023" {
+data "aws_ami" "bootstrap_ubuntu" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = ["099720109477"]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-2023.*-kernel-6.1-x86_64"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
   }
 
   filter {
@@ -26,12 +26,28 @@ resource "aws_security_group" "bootstrap" {
     cidr_blocks = local.private_subnets
   }
 
+  ingress {
+    description      = "Allow all IPv6 traffic from private subnets for subnet routing and NAT64"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = module.vpc.private_subnets_ipv6_cidr_blocks
+  }
+
   egress {
     description = "Allow all outbound traffic for NAT forwarding"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description      = "Allow all IPv6 outbound traffic for subnet routing"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = merge(local.tags, { Name = "${local.name}-bootstrap" })

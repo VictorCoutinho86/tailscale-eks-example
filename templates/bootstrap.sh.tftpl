@@ -4,44 +4,67 @@ set -euo pipefail
 exec > >(tee /var/log/tailscale-subnet-router.log | logger -t tailscale-subnet-router -s 2>/dev/console) 2>&1
 
 export VPC_CIDR="${vpc_cidr}"
+export VPC_IPV6_CIDR="${vpc_ipv6_cidr}"
+NAT64_PREFIX="${nat64_prefix}"
 TAILSCALE_SUBNET_ROUTER_AUTH_KEY="${tailscale_subnet_router_auth_key}"
 TAILSCALE_SUBNET_ROUTER_HOSTNAME="${tailscale_subnet_router_hostname}"
 REGION="${aws_region}"
-RTB_BY_AZ='${private_route_table_by_az}'
+RTB_IDS_BY_ROUTER_AZ='${private_route_table_ids_by_router_az}'
 
-dnf install -y curl-minimal unzip jq
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl unzip jq iptables iproute2 unbound tayga
 
-mkdir -p /home/ec2-user/.ssh
-echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJgDt7HmetpQ7cg29bXkA3VQBfRgWZwMETcBic1y8XvH victor.coutinho.melo.1986@gmail.com' >> /home/ec2-user/.ssh/authorized_keys
-chmod 700 /home/ec2-user/.ssh
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+rm -rf /tmp/aws /tmp/awscliv2.zip
 
 TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 AZ=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
 MAC=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/mac)
 ENI_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/interface-id")
+PRIVATE_IPV4=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 AZ_SUFFIX=$(echo "$AZ" | rev | cut -c1)
 
 aws ec2 modify-instance-attribute --instance-id "$INSTANCE_ID" --no-source-dest-check --region "$REGION"
 
-RTB_ID=$(echo "$RTB_BY_AZ" | jq -r --arg az "$AZ" '.[$az]')
-aws ec2 replace-route \
-  --route-table-id "$RTB_ID" \
-  --destination-cidr-block 0.0.0.0/0 \
-  --network-interface-id "$ENI_ID" \
-  --region "$REGION" \
-  || aws ec2 create-route \
+RTB_IDS=$(echo "$RTB_IDS_BY_ROUTER_AZ" | jq -r --arg az "$AZ" '.[$az][]?')
+if [[ -z "$RTB_IDS" ]]; then
+  echo "No private route tables assigned to subnet router AZ $AZ"
+  exit 1
+fi
+
+while IFS= read -r RTB_ID; do
+  aws ec2 replace-route \
     --route-table-id "$RTB_ID" \
     --destination-cidr-block 0.0.0.0/0 \
     --network-interface-id "$ENI_ID" \
-    --region "$REGION"
+    --region "$REGION" \
+    || aws ec2 create-route \
+      --route-table-id "$RTB_ID" \
+      --destination-cidr-block 0.0.0.0/0 \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION"
+
+  aws ec2 replace-route \
+    --route-table-id "$RTB_ID" \
+    --destination-ipv6-cidr-block "$NAT64_PREFIX" \
+    --network-interface-id "$ENI_ID" \
+    --region "$REGION" \
+    || aws ec2 create-route \
+      --route-table-id "$RTB_ID" \
+      --destination-ipv6-cidr-block "$NAT64_PREFIX" \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION"
+done <<< "$RTB_IDS"
 
 curl -fsSL https://tailscale.com/install.sh | sh
 
 cat >/etc/sysctl.d/99-tailscale.conf <<'EOF'
 net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
 EOF
 sysctl -p /etc/sysctl.d/99-tailscale.conf
 
@@ -49,9 +72,67 @@ systemctl enable --now tailscaled
 tailscale up \
   --auth-key="$TAILSCALE_SUBNET_ROUTER_AUTH_KEY" \
   --hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME-$AZ_SUFFIX" \
-  --advertise-routes="$VPC_CIDR,${vpc_cidr_resolver}/32" \
+  --advertise-routes="$VPC_CIDR,$VPC_IPV6_CIDR,${vpc_cidr_resolver}/32" \
   --accept-dns=false
 unset TAILSCALE_SUBNET_ROUTER_AUTH_KEY
+
+cat >/etc/unbound/conf.d/dns64.conf <<EOF
+server:
+  interface: $PRIVATE_IPV4
+  access-control: ${vpc_cidr} allow
+  do-ip4: yes
+  do-ip6: yes
+  do-udp: yes
+  do-tcp: yes
+  module-config: "dns64 validator iterator"
+  dns64-prefix: $NAT64_PREFIX
+forward-zone:
+  name: "."
+  forward-addr: ${vpc_cidr_resolver}
+EOF
+
+unbound-checkconf
+systemctl enable unbound
+systemctl restart unbound
+
+mkdir -p /var/lib/tayga
+
+cat >/etc/tayga.conf <<EOF
+tun-device nat64
+ipv4-addr 192.0.2.1
+prefix $NAT64_PREFIX
+dynamic-pool 192.0.2.0/24
+data-dir /var/lib/tayga
+pid-file /run/tayga.pid
+EOF
+
+cat >/usr/local/sbin/nat64-setup <<EOF
+#!/bin/sh
+set -eu
+/usr/sbin/tayga --mktun || true
+/usr/sbin/ip link set nat64 up
+/usr/sbin/ip route replace 192.0.2.0/24 dev nat64
+/usr/sbin/ip -6 route replace $NAT64_PREFIX dev nat64
+/usr/sbin/iptables -t nat -C POSTROUTING -s 192.0.2.0/24 -j MASQUERADE || /usr/sbin/iptables -t nat -A POSTROUTING -s 192.0.2.0/24 -j MASQUERADE
+EOF
+chmod 0755 /usr/local/sbin/nat64-setup
+
+cat >/etc/systemd/system/nat64.service <<'EOF'
+[Unit]
+Description=Enable NAT64 translation for IPv6 workloads reaching IPv4-only endpoints
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+PIDFile=/run/tayga.pid
+ExecStartPre=/usr/local/sbin/nat64-setup
+ExecStart=/usr/sbin/tayga
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 cat >/etc/systemd/system/nat-masquerade.service <<EOF
 [Unit]
@@ -69,4 +150,5 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+systemctl enable --now nat64.service
 systemctl enable --now nat-masquerade.service

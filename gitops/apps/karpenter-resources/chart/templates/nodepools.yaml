@@ -17,7 +17,10 @@ spec:
           values: ["spot", "on-demand"]
         - key: karpenter.k8s.aws/instance-family
           operator: In
-          values: ["t2", "t3", "t4g"]
+          values: ["t3", "t4g"]
+        - key: karpenter.k8s.aws/instance-hypervisor
+          operator: In
+          values: ["nitro"]
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass

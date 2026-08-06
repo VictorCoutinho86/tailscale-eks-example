@@ -180,6 +180,62 @@ if ! grep -R -q 'argocd.argoproj.io/sync-wave' gitops; then
   exit 1
 fi
 
+for ingress_file in \
+  gitops/base/templates/ingresses.yaml \
+  gitops/apps/kube-prometheus-stack/values.yaml \
+  gitops/apps/spark-history-server/values.yaml; do
+  if ! grep -Fq 'alb.ingress.kubernetes.io/ip-address-type: dualstack' "$ingress_file"; then
+    printf 'expected ALB ingress in %s to request dualstack address type\n' "$ingress_file" >&2
+    exit 1
+  fi
+  if ! grep -Fq 'alb.ingress.kubernetes.io/target-type: ip' "$ingress_file"; then
+    printf 'expected ALB ingress in %s to use IP targets for IPv6 pods\n' "$ingress_file" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q '\[::\]:4317' gitops/apps/otel-collector/values.yaml || ! grep -q '\[::\]:4318' gitops/apps/otel-collector/values.yaml; then
+  printf 'expected OpenTelemetry Collector OTLP receivers to bind on IPv6-compatible addresses\n' >&2
+  exit 1
+fi
+
+if ! grep -A2 'pipelines:' gitops/apps/otel-collector/values.yaml | grep -q 'logs:'; then
+  printf 'expected OpenTelemetry Collector OTLP pipeline to send logs to Loki\n' >&2
+  exit 1
+fi
+
+if grep -A4 'traces:' gitops/apps/otel-collector/values.yaml | grep -q 'otlphttp'; then
+  printf 'expected OpenTelemetry Collector not to send traces to Loki OTLP endpoint\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'webhook:' gitops/apps/spark-operator/values.yaml || \
+  ! grep -A2 'webhook:' gitops/apps/spark-operator/values.yaml | grep -q 'enable: true'; then
+  printf 'expected Spark Operator webhook to remain enabled for supported SparkApplication mutation\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'jobNamespaces:' gitops/root/templates/applications.yaml || \
+  ! grep -q 'global.sparkWorkloadNamespace' gitops/root/templates/applications.yaml; then
+  printf 'expected Spark Operator to watch the configured Spark workload namespace\n' >&2
+  exit 1
+fi
+
+if grep -R -q 'SPARK_LOCAL_IP\|envVars:' gitops/apps/spark-operator gitops/root/templates; then
+  printf 'expected Spark Operator GitOps values not to use unsupported spark.env or deprecated envVars\n' >&2
+  exit 1
+fi
+
+if grep -A8 'spark:' gitops/apps/spark-operator/values.yaml | grep -q '^[[:space:]]*env:'; then
+  printf 'expected Spark Operator chart values not to use unsupported spark.env\n' >&2
+  exit 1
+fi
+
+if grep -A10 'spark-operator:' gitops/root/templates/applications.yaml | grep -A8 'spark:' | grep -q '^[[:space:]]*env:'; then
+  printf 'expected Spark Operator root overrides not to use unsupported spark.env\n' >&2
+  exit 1
+fi
+
 if ! grep -R -q 'useHelmHooks: false' gitops/apps/airflow; then
   printf 'expected Airflow Helm hooks to be disabled for Argo CD safety\n' >&2
   exit 1
@@ -422,6 +478,46 @@ if grep -q 'enable_nat_gateway = true' network.tf; then
   exit 1
 fi
 
+if ! grep -q 'enable_ipv6 *= *true' network.tf; then
+  printf 'expected VPC IPv6 to be enabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'create_egress_only_igw *= *true' network.tf; then
+  printf 'expected egress-only internet gateway for IPv6 private egress\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'public_subnet_ipv6_prefixes' network.tf || ! grep -q 'private_subnet_ipv6_prefixes' network.tf; then
+  printf 'expected IPv6 prefixes assigned to public and private subnets\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'private_subnet_enable_dns64 *= *true' network.tf; then
+  printf 'expected private subnets to enable DNS64 for IPv6 workloads reaching IPv4-only endpoints\n' >&2
+  exit 1
+fi
+
+if grep -q 'resource "aws_nat_gateway"' ./*.tf; then
+  printf 'expected no AWS NAT Gateway resources\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'ip_family *= *"ipv6"' eks.tf; then
+  printf 'expected EKS cluster IP family to be IPv6\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'create_cni_ipv6_iam_policy *= *true' eks.tf; then
+  printf 'expected EKS module to create the VPC CNI IPv6 IAM policy\n' >&2
+  exit 1
+fi
+
+if ! grep -Eq 'cluster_ip_family[[:space:]]*=[[:space:]]*module\.eks\.cluster_ip_family' karpenter.tf; then
+  printf 'expected Karpenter module to use the EKS cluster IP family\n' >&2
+  exit 1
+fi
+
 if grep -q 'resource "aws_route" "private_nat_instance"' network.tf; then
   printf 'expected per-AZ NAT routes to be managed by cloud-init, not Terraform aws_route\n' >&2
   exit 1
@@ -442,8 +538,8 @@ if ! grep -q 'replace-route' "$bootstrap"; then
   exit 1
 fi
 
-if ! grep -q 'private_route_table_by_az' "$bootstrap"; then
-  printf 'expected cloud-init to receive AZ-to-route-table mapping\n' >&2
+if ! grep -q 'private_route_table_ids_by_router_az' tailscale-bootstrap.tf; then
+  printf 'expected Terraform to define router-AZ private route-table assignments\n' >&2
   exit 1
 fi
 

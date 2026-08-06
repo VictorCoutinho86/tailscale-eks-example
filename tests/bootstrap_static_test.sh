@@ -5,6 +5,7 @@ bootstrap="templates/bootstrap.sh.tftpl"
 locals_tf="locals.tf"
 outputs_tf="outputs.tf"
 bootstrap_tf="tailscale-bootstrap.tf"
+bootstrap_iam_tf="bootstrap-iam.tf"
 
 if ! grep -q 'https://tailscale.com/install.sh' "$bootstrap"; then
   printf 'expected bootstrap to install Tailscale on the subnet router instance\n' >&2
@@ -46,7 +47,7 @@ if ! grep -qF -- '--hostname="$TAILSCALE_SUBNET_ROUTER_HOSTNAME' "$bootstrap"; t
   exit 1
 fi
 
-if ! grep -qF -- '--advertise-routes="$VPC_CIDR,${vpc_cidr_resolver}/32"' "$bootstrap"; then
+if ! grep -Fq -- '--advertise-routes="$VPC_CIDR,$VPC_IPV6_CIDR,${vpc_cidr_resolver}/32"' "$bootstrap"; then
   printf 'expected bootstrap to advertise the VPC CIDR as a Tailscale subnet route\n' >&2
   exit 1
 fi
@@ -66,18 +67,90 @@ if ! grep -q 'resource "aws_launch_template" "subnet_router"' "$bootstrap_tf"; t
   exit 1
 fi
 
+if ! grep -q 'data "aws_ami" "bootstrap_ubuntu"' "$bootstrap_iam_tf"; then
+  printf 'expected subnet router AMI data source to use Ubuntu\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'owners *= *\["099720109477"\]' "$bootstrap_iam_tf"; then
+  printf 'expected subnet router AMI to use Canonical owner\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-\*' "$bootstrap_iam_tf"; then
+  printf 'expected subnet router AMI to filter Ubuntu 24.04 LTS gp3 server images\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'image_id *= *data.aws_ami.bootstrap_ubuntu.id' "$bootstrap_tf"; then
+  printf 'expected subnet router launch template to use Ubuntu AMI\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'device_name *= *data.aws_ami.bootstrap_ubuntu.root_device_name' "$bootstrap_tf"; then
+  printf 'expected subnet router root block device to use the Ubuntu AMI root device name\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'apt-get update' "$bootstrap" || ! grep -q 'apt-get install' "$bootstrap"; then
+  printf 'expected bootstrap template to use apt on Ubuntu\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'awscli-exe-linux-x86_64.zip' "$bootstrap"; then
+  printf 'expected bootstrap template to install AWS CLI v2 with the bundled installer\n' >&2
+  exit 1
+fi
+
+if grep -q '^apt-get install .*awscli' "$bootstrap"; then
+  printf 'expected bootstrap template not to install awscli from Ubuntu apt packages\n' >&2
+  exit 1
+fi
+
+if grep -q 'dnf install' "$bootstrap"; then
+  printf 'expected bootstrap template not to use dnf on Ubuntu\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'tayga' "$bootstrap" || ! grep -q '/etc/tayga.conf' "$bootstrap"; then
+  printf 'expected bootstrap template to configure packaged tayga NAT64\n' >&2
+  exit 1
+fi
+
+if grep -q 'authorized_keys\|/home/ubuntu/.ssh\|ssh-ed25519' "$bootstrap"; then
+  printf 'expected bootstrap template not to bake personal SSH keys into subnet routers\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'resource "aws_autoscaling_group" "subnet_router"' "$bootstrap_tf"; then
   printf 'expected subnet router Auto Scaling Group\n' >&2
   exit 1
 fi
 
-if ! grep -q 'min_size *= *3' "$bootstrap_tf"; then
-  printf 'expected ASG min_size of 3 for per-AZ subnet router instances\n' >&2
+if ! grep -q 'count = var.enable_bootstrap_instance ? 2 : 0' "$bootstrap_tf"; then
+  printf 'expected two subnet-router ASGs in different AZs\n' >&2
   exit 1
 fi
 
-if ! grep -q 'desired_capacity *= *3' "$bootstrap_tf"; then
-  printf 'expected ASG desired_capacity of 3 for per-AZ subnet router instances\n' >&2
+for size in min_size max_size desired_capacity; do
+  if ! grep -Eq "^[[:space:]]*${size}[[:space:]]*=[[:space:]]*1[[:space:]]*$" "$bootstrap_tf"; then
+    printf 'expected subnet-router ASGs to use %s of 1\n' "$size" >&2
+    exit 1
+  fi
+done
+
+if ! grep -qF 'vpc_zone_identifier = [module.vpc.public_subnets[count.index]]' "$bootstrap_tf"; then
+  printf 'expected subnet-router ASGs to be pinned to distinct public subnets by count.index\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq 'name                = "${local.name}-subnet-router-${local.subnet_router_azs[count.index]}"' "$bootstrap_tf"; then
+  printf 'expected subnet-router ASGs to use AZ-specific names by count.index\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq 'value               = "${local.name}-subnet-router-${local.subnet_router_azs[count.index]}"' "$bootstrap_tf"; then
+  printf 'expected subnet-router ASGs to tag instances with AZ-specific names by count.index\n' >&2
   exit 1
 fi
 
@@ -106,8 +179,8 @@ if ! grep -q 'capacity_rebalance *= *true' "$bootstrap_tf"; then
   exit 1
 fi
 
-if ! grep -q 'instance_type = "t3.nano"' "$bootstrap_tf"; then
-  printf 'expected t3.nano in spot instance type overrides\n' >&2
+if grep -q 'instance_type = "t3.nano"\|instance_type = "t3a.nano"' "$bootstrap_tf"; then
+  printf 'expected subnet-router spot overrides not to use nano instances\n' >&2
   exit 1
 fi
 
@@ -146,6 +219,77 @@ fi
 
 if ! grep -q 'nat-masquerade.service' "$bootstrap"; then
   printf 'expected bootstrap template to persist NAT masquerade via systemd\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'net.ipv6.conf.all.forwarding = 1' "$bootstrap"; then
+  printf 'expected bootstrap to enable IPv6 forwarding for subnet routing and NAT64\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'VPC_IPV6_CIDR' "$bootstrap"; then
+  printf 'expected bootstrap to receive the VPC IPv6 CIDR\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'NAT64_PREFIX' "$bootstrap"; then
+  printf 'expected bootstrap to configure a NAT64 prefix\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq -- '--destination-ipv6-cidr-block "$NAT64_PREFIX"' "$bootstrap"; then
+  printf 'expected bootstrap to manage NAT64 IPv6 route-table entries\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'unbound' "$bootstrap" || ! grep -q 'dns64-prefix:' "$bootstrap"; then
+  printf 'expected bootstrap to configure DNS64 with unbound\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'systemctl enable unbound' "$bootstrap" || ! grep -q 'systemctl restart unbound' "$bootstrap" || grep -q 'systemctl enable --now unbound' "$bootstrap"; then
+  printf 'expected bootstrap to validate DNS64 config before enabling and restarting unbound\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'nat64.service' "$bootstrap" || ! grep -q 'systemctl enable --now nat64.service' "$bootstrap"; then
+  printf 'expected bootstrap to configure and enable NAT64 service\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'pid-file /run/tayga.pid' "$bootstrap" || \
+  ! grep -q 'Type=forking' "$bootstrap" || \
+  ! grep -q 'PIDFile=/run/tayga.pid' "$bootstrap" || \
+  ! grep -q 'ExecStartPre=/usr/local/sbin/nat64-setup' "$bootstrap" || \
+  ! grep -q 'ExecStart=/usr/sbin/tayga' "$bootstrap" || \
+  ! grep -q 'Restart=on-failure' "$bootstrap"; then
+  printf 'expected nat64.service to supervise tayga with systemd\n' >&2
+  exit 1
+fi
+
+if grep -q 'pgrep -x tayga' "$bootstrap"; then
+  printf 'expected nat64 setup not to use pgrep as a tayga process guard\n' >&2
+  exit 1
+fi
+
+if grep -q 'RemainAfterExit=yes' "$bootstrap" && grep -A10 '\[Service\]' "$bootstrap" | grep -q 'ExecStart=/usr/local/sbin/nat64-setup'; then
+  printf 'expected nat64 setup not to start tayga as a oneshot service\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'private_route_table_ids_by_router_az' "$bootstrap_tf"; then
+  printf 'expected Terraform to pass router-AZ route-table assignments\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq 'module.vpc.private_route_table_ids[2]' "$bootstrap_tf"; then
+  printf 'expected third-AZ private route table to be assigned to a fixed subnet router\n' >&2
+  exit 1
+fi
+
+if ! grep -A4 -F 'local.subnet_router_azs[0]' "$bootstrap_tf" | grep -Fq 'module.vpc.private_route_table_ids[0]' || \
+  ! grep -A4 -F 'local.subnet_router_azs[0]' "$bootstrap_tf" | grep -Fq 'module.vpc.private_route_table_ids[2]'; then
+  printf 'expected first subnet-router AZ to receive private route tables 0 and 2\n' >&2
   exit 1
 fi
 

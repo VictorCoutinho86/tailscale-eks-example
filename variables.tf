@@ -47,7 +47,7 @@ variable "cluster_version" {
 variable "default_node_instance_type" {
   description = "Instance type for the default EKS managed node group."
   type        = string
-  default     = "t2.medium"
+  default     = "t3.medium"
 }
 
 variable "default_node_ami_type" {

@@ -9,6 +9,17 @@ module "vpc" {
   public_subnets  = local.public_subnets
   private_subnets = local.private_subnets
 
+  enable_ipv6 = true
+
+  public_subnet_ipv6_prefixes  = local.public_subnet_ipv6_prefixes
+  private_subnet_ipv6_prefixes = local.private_subnet_ipv6_prefixes
+
+  public_subnet_assign_ipv6_address_on_creation  = true
+  private_subnet_assign_ipv6_address_on_creation = true
+  private_subnet_enable_dns64                    = true
+
+  create_egress_only_igw = true
+
   enable_dns_hostnames = true
   enable_dns_support   = true
 

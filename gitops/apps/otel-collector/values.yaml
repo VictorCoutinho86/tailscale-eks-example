@@ -1,5 +1,7 @@
 opentelemetry-collector:
   mode: deployment
+  image:
+    repository: otel/opentelemetry-collector-contrib
   replicaCount: 1
   resources:
     requests:
@@ -9,14 +11,25 @@ opentelemetry-collector:
       memory: 256Mi
       cpu: 200m
 
-  config:
+  alternateConfig:
+    extensions:
+      health_check:
+        endpoint: "[::]:13133"
+
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+
     receivers:
       otlp:
         protocols:
           grpc:
-            endpoint: 0.0.0.0:4317
+            endpoint: "[::]:4317"
           http:
-            endpoint: 0.0.0.0:4318
+            endpoint: "[::]:4318"
 
     exporters:
       otlphttp:
@@ -25,7 +38,21 @@ opentelemetry-collector:
         verbosity: basic
 
     service:
+      extensions: [health_check]
       pipelines:
-        traces:
+        logs:
           receivers: [otlp]
+          processors: [memory_limiter, batch]
           exporters: [otlphttp, debug]
+
+  ports:
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+    metrics:
+      enabled: false

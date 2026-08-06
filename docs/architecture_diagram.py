@@ -5,11 +5,10 @@
 
 from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import EC2, EKS
-from diagrams.aws.network import Endpoint, PrivateSubnet, PublicSubnet, VPC
+from diagrams.aws.network import ALB, Endpoint, PrivateSubnet, VPC
 from diagrams.aws.storage import S3
 from diagrams.k8s.compute import Deploy, Pod
-from diagrams.k8s.network import Ingress, Service
-from diagrams.k8s.storage import StorageClass
+from diagrams.k8s.network import Ingress
 from diagrams.onprem.client import User
 from diagrams.onprem.database import PostgreSQL
 
@@ -53,15 +52,19 @@ with Diagram(
         s3 = S3("S3")
 
         with Cluster("Public subnets /24\n3 AZs"):
-            subnet_router_asg = EC2("Subnet router ASG\n3 spot instances\nTailscale + NAT")
+            subnet_router_asg = EC2("2 subnet-router ASGs\nUbuntu 24.04 spot\nTailscale + NAT64")
             eks_api = EKS("EKS private\nAPI endpoint")
 
+        egress_only_igw = Endpoint("Egress-only IGW\nIPv6 internet egress")
+        private_route_tables = PrivateSubnet("Private route tables\nIPv4 default + NAT64")
+        nat64_dns64 = Endpoint("NAT64/DNS64\ntayga + Unbound")
+
         with Cluster("Private subnets /20\n3 AZs"):
-            default_nodes = EKS("Default node group")
-            karpenter_nodes = EKS("Karpenter nodes\nt2/t3/t4g")
+            default_nodes = EKS("Default node group\nIPv6 Pods")
+            karpenter_nodes = EKS("Karpenter nodes\nNitro instances")
             spark_nodes = EKS("Spark NodePool\nr family + NVMe")
 
-            internal_alb = PublicSubnet("Internal ALB\nHTTPS host routing\nTLS 1.2+")
+            internal_alb = ALB("Internal dual-stack ALB\nHTTPS host routing\nTLS 1.2+")
 
             with Cluster("Platform services"):
                 aws_lb = Deploy("AWS LBC")
@@ -102,8 +105,12 @@ with Diagram(
     subnet_router_asg >> Edge(label="private EKS API") >> eks_api
     tailnet_client >> Edge(label="HTTPS over subnet route") >> internal_alb
 
-    # NAT routing per AZ
-    subnet_router_asg >> Edge(label="NAT per AZ\nreplace-route") >> PrivateSubnet("Private route\ntables")
+    # Private subnet routing
+    subnet_router_asg >> Edge(label="self-configures\nreplace-route") >> private_route_tables
+    private_route_tables >> Edge(label="0.0.0.0/0\nIPv4 NAT") >> subnet_router_asg
+    private_route_tables >> Edge(label="64:ff9b::/96\nNAT64") >> nat64_dns64 >> subnet_router_asg
+    default_nodes >> Edge(label="IPv6 egress") >> egress_only_igw
+    karpenter_nodes >> Edge(label="IPv6 egress") >> egress_only_igw
 
     # Terraform creates infra
     root_terraform >> Edge(label="creates") >> vpc
@@ -135,7 +142,7 @@ with Diagram(
     argocd >> Edge(label="reconciles") >> otel
 
     # DNS
-    external_dns >> Edge(label="upserts A/TXT") >> route53
+    external_dns >> Edge(label="upserts DNS/TXT") >> route53
 
     # ALB
     aws_lb >> Edge(label="reconciles") >> internal_alb
@@ -158,7 +165,7 @@ with Diagram(
     airflow >> Edge(label="metadata") >> airflow_db
     velero >> Edge(label="backups") >> s3_velero
     loki >> Edge(label="chunks") >> s3_loki
-    otel >> Edge(label="traces") >> loki
+    otel >> Edge(label="OTLP logs") >> loki
     spark_history >> Edge(label="reads events") >> s3_spark
 
     # VPC endpoint

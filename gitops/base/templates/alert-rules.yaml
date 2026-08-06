@@ -16,7 +16,7 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Node {{ $labels.node }} has been NotReady for 5 minutes"
+            summary: "Node {{ "{{ $labels.node }}" }} has been NotReady for 5 minutes"
 
         - alert: PodCrashLooping
           expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
@@ -24,7 +24,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            summary: "Pod {{ "{{ $labels.namespace }}" }}/{{ "{{ $labels.pod }}" }} is crash looping"
 
         - alert: PVCUsageHigh
           expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
@@ -32,7 +32,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is over 85% full"
+            summary: "PVC {{ "{{ $labels.namespace }}" }}/{{ "{{ $labels.persistentvolumeclaim }}" }} is over 85% full"
 
         - alert: KarpenterCapacityLimit
           expr: karpenter_cloudprovider_instance_type_offering_available == 0

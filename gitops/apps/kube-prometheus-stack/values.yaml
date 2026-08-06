@@ -23,6 +23,8 @@ kube-prometheus-stack:
         - monitoring.CHANGEME
       annotations:
         alb.ingress.kubernetes.io/scheme: internal
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/ip-address-type: dualstack
         alb.ingress.kubernetes.io/group.name: platform
         alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
         alb.ingress.kubernetes.io/ssl-redirect: "443"

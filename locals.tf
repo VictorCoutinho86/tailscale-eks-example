@@ -19,6 +19,16 @@ locals {
     for index, _ in local.azs : cidrsubnet(var.vpc_cidr, 4, index + 1)
   ]
 
+  public_subnet_ipv6_prefixes = [0, 1, 2]
+
+  private_subnet_ipv6_prefixes = [3, 4, 5]
+
+  subnet_router_azs = slice(local.azs, 0, 2)
+
+  subnet_router_primary_az = local.subnet_router_azs[0]
+
+  nat64_prefix = "64:ff9b::/96"
+
   tailscale_subnet_router_hostname = "${local.name}-subnet-router"
 
   airflow_s3_policy_statements = [

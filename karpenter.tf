@@ -5,6 +5,8 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
   namespace    = "karpenter"
 
+  cluster_ip_family = module.eks.cluster_ip_family
+
   create_instance_profile = true
   enable_inline_policy    = true
   enable_spot_termination = true

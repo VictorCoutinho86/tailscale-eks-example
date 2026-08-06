@@ -24,24 +24,39 @@ output "vpc_id" {
   value       = module.vpc.vpc_id
 }
 
+output "vpc_ipv6_cidr_block" {
+  description = "Amazon-provided IPv6 CIDR block associated with the VPC."
+  value       = module.vpc.vpc_ipv6_cidr_block
+}
+
 output "public_subnet_ids" {
   description = "Public subnet IDs."
   value       = module.vpc.public_subnets
 }
 
+output "private_subnet_ipv6_cidr_blocks" {
+  description = "IPv6 CIDR blocks assigned to private EKS subnets."
+  value       = module.vpc.private_subnets_ipv6_cidr_blocks
+}
+
 output "tailscale_subnet_router_hostname" {
-  description = "Tailscale subnet router hostname that advertises the VPC CIDR."
+  description = "Tailscale subnet router hostname base prefix; each router appends its AZ suffix."
   value       = local.tailscale_subnet_router_hostname
 }
 
 output "tailscale_subnet_route" {
-  description = "VPC CIDR advertised by the Tailscale subnet router. Approve this route in the Tailscale admin console."
+  description = "VPC CIDR advertised by the Tailscale subnet routers. Approve this route in the Tailscale admin console."
   value       = var.vpc_cidr
 }
 
-output "bootstrap_instance_id" {
-  description = "Subnet router Auto Scaling Group name when enabled."
-  value       = try(aws_autoscaling_group.subnet_router[0].name, null)
+output "tailscale_subnet_ipv6_route" {
+  description = "VPC IPv6 CIDR advertised by the Tailscale subnet routers. Approve this route in the Tailscale admin console."
+  value       = module.vpc.vpc_ipv6_cidr_block
+}
+
+output "subnet_router_asg_names" {
+  description = "Subnet router Auto Scaling Group names when enabled."
+  value       = [for asg in aws_autoscaling_group.subnet_router : asg.name]
 }
 
 output "karpenter_queue_name" {

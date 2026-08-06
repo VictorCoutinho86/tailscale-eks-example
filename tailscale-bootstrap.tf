@@ -1,7 +1,19 @@
+locals {
+  private_route_table_ids_by_router_az = {
+    (local.subnet_router_azs[0]) = [
+      module.vpc.private_route_table_ids[0],
+      module.vpc.private_route_table_ids[2],
+    ]
+    (local.subnet_router_azs[1]) = [
+      module.vpc.private_route_table_ids[1],
+    ]
+  }
+}
+
 resource "aws_launch_template" "subnet_router" {
   name_prefix = "${local.name}-subnet-router-"
 
-  image_id      = data.aws_ami.bootstrap_al2023.id
+  image_id      = data.aws_ami.bootstrap_ubuntu.id
   instance_type = var.bootstrap_instance_type
 
   vpc_security_group_ids = [aws_security_group.bootstrap.id]
@@ -17,7 +29,7 @@ resource "aws_launch_template" "subnet_router" {
   }
 
   block_device_mappings {
-    device_name = "/dev/xvda"
+    device_name = data.aws_ami.bootstrap_ubuntu.root_device_name
     ebs {
       volume_type           = "gp3"
       volume_size           = 20
@@ -32,8 +44,13 @@ resource "aws_launch_template" "subnet_router" {
     tailscale_subnet_router_auth_key = var.tailscale_subnet_router_auth_key
     tailscale_subnet_router_hostname = local.tailscale_subnet_router_hostname
     aws_region                       = var.aws_region
+    vpc_ipv6_cidr                    = module.vpc.vpc_ipv6_cidr_block
+    nat64_prefix                     = local.nat64_prefix
     private_route_table_by_az = jsonencode({
       for az, rtb in zipmap(local.azs, module.vpc.private_route_table_ids) : az => rtb
+    })
+    private_route_table_ids_by_router_az = jsonencode({
+      for az, route_table_ids in local.private_route_table_ids_by_router_az : az => route_table_ids
     })
   }))
 
@@ -50,13 +67,13 @@ resource "aws_launch_template" "subnet_router" {
 }
 
 resource "aws_autoscaling_group" "subnet_router" {
-  count = var.enable_bootstrap_instance ? 1 : 0
+  count = var.enable_bootstrap_instance ? 2 : 0
 
-  name                = "${local.name}-subnet-router"
-  vpc_zone_identifier = module.vpc.public_subnets
-  min_size            = 3
-  max_size            = 3
-  desired_capacity    = 3
+  name                = "${local.name}-subnet-router-${local.subnet_router_azs[count.index]}"
+  vpc_zone_identifier = [module.vpc.public_subnets[count.index]]
+  min_size            = 1
+  max_size            = 1
+  desired_capacity    = 1
   capacity_rebalance  = true
 
   mixed_instances_policy {
@@ -73,16 +90,10 @@ resource "aws_autoscaling_group" "subnet_router" {
       }
 
       override {
-        instance_type = "t3.nano"
-      }
-      override {
         instance_type = "t3.micro"
       }
       override {
         instance_type = "t3.small"
-      }
-      override {
-        instance_type = "t3a.nano"
       }
       override {
         instance_type = "t3a.micro"
@@ -101,7 +112,7 @@ resource "aws_autoscaling_group" "subnet_router" {
 
   tag {
     key                 = "Name"
-    value               = "${local.name}-subnet-router"
+    value               = "${local.name}-subnet-router-${local.subnet_router_azs[count.index]}"
     propagate_at_launch = true
   }
 }
