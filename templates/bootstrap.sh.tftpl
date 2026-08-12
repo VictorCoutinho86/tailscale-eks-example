@@ -76,7 +76,7 @@ tailscale up \
   --accept-dns=false
 unset TAILSCALE_SUBNET_ROUTER_AUTH_KEY
 
-cat >/etc/unbound/conf.d/dns64.conf <<EOF
+cat >/etc/unbound/unbound.conf.d/dns64.conf <<EOF
 server:
   interface: $PRIVATE_IPV4
   access-control: ${vpc_cidr} allow

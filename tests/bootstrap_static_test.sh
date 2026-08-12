@@ -247,6 +247,16 @@ if ! grep -q 'unbound' "$bootstrap" || ! grep -q 'dns64-prefix:' "$bootstrap"; t
   exit 1
 fi
 
+if ! grep -q '/etc/unbound/unbound.conf.d/dns64.conf' "$bootstrap"; then
+  printf 'expected bootstrap to write DNS64 config to the Ubuntu unbound.conf.d include directory\n' >&2
+  exit 1
+fi
+
+if grep -q '/etc/unbound/conf.d/' "$bootstrap"; then
+  printf 'expected bootstrap not to use the missing /etc/unbound/conf.d directory on Ubuntu 24.04\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'systemctl enable unbound' "$bootstrap" || ! grep -q 'systemctl restart unbound' "$bootstrap" || grep -q 'systemctl enable --now unbound' "$bootstrap"; then
   printf 'expected bootstrap to validate DNS64 config before enabling and restarting unbound\n' >&2
   exit 1
