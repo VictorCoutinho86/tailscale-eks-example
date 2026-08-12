@@ -10,9 +10,9 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - The EKS API endpoint is private only, encrypted with KMS envelope encryption.
 - Local access to the private EKS API and internal ALB goes through the Tailscale subnet router EC2 instances.
 - Private subnet IPv6 egress uses an egress-only internet gateway and does not use AWS NAT Gateway.
-- The subnet router runs as two spot-backed Auto Scaling Groups in two AZs.
-- The third AZ routes IPv4 NAT and NAT64/DNS64 traffic to one fixed subnet-router.
-- The subnet routers advertise the VPC IPv4 and IPv6 CIDRs through Tailscale.
+- The subnet router runs as a single spot-backed Auto Scaling Group in one AZ.
+- All AZs route IPv4 NAT and NAT64/DNS64 traffic to the single subnet-router.
+- The subnet router advertises the VPC IPv4 and IPv6 CIDRs through Tailscale.
 - Argo CD, Airflow, Kubecost, Grafana, and Spark History Server are exposed through one shared internal dual-stack AWS Application Load Balancer.
 - The ALB uses host-based routing with TLS 1.2 minimum.
 - TLS is handled by an ACM wildcard certificate for `*.${route53_domain_name}`.
@@ -25,7 +25,7 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 
 - Tailscale HTTPS certificates are not supported by the current Tailscale account, so the platform uses ACM for TLS.
 - The Tailscale Kubernetes Operator/API server proxy path was removed.
-- The bootstrap EC2 instance was replaced with two spot-backed Auto Scaling Groups in two AZs.
+- The bootstrap EC2 instance was replaced with a single spot-backed Auto Scaling Group.
 - Subnet-router AMIs use Ubuntu 24.04 because Amazon Linux 2023 does not package tayga or jool for NAT64.
 - NAT64 uses packaged tayga. DNS64 uses VPC subnet DNS64 plus local Unbound on each subnet router as a fallback and diagnostic resolver.
 - Root Terraform must not install platform service Helm charts or connect to Kubernetes, except for the existing Argo CD bootstrap Helm releases in `argocd.tf`.
@@ -46,9 +46,9 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - Dual-stack VPC across three AZs with public /24 subnets (subnet-router ASGs, EKS control-plane ENIs) and private /20 subnets (EKS nodes, Karpenter, internal dual-stack ALB).
 - IPv6 private subnet egress through an egress-only internet gateway, with no AWS NAT Gateway resources.
 - `kubernetes.io/role/elb` on public subnets; `kubernetes.io/role/internal-elb` and `karpenter.sh/discovery` on private subnets.
-- Two subnet-router ASGs in two AZs (1 spot instance each, mixed instance types, capacity rebalance).
-- Each subnet-router instance self-configures assigned private route tables (`replace-route` via cloud-init), acts as IPv4 NAT (iptables MASQUERADE), provides NAT64 with tayga and DNS64 with Unbound, and advertises the VPC IPv4 and IPv6 CIDRs via Tailscale.
-- The third AZ's private route table sends IPv4 NAT and NAT64 traffic to the fixed primary subnet-router.
+- One subnet-router ASG in one AZ (1 spot instance, mixed instance types, capacity rebalance).
+- The subnet-router instance self-configures all private route tables (`replace-route` via cloud-init), acts as IPv4 NAT (iptables MASQUERADE), provides NAT64 with tayga and DNS64 with Unbound, and advertises the VPC IPv4 and IPv6 CIDRs via Tailscale.
+- All private route tables send IPv4 NAT and NAT64 traffic to the single subnet-router.
 - Private-only IPv6 EKS cluster with KMS secrets encryption, CloudWatch log retention (90 days), VPC CNI network policy enabled, default managed node group.
 - EKS addons: VPC CNI, EKS Pod Identity Agent, CoreDNS, kube-proxy, EBS CSI driver.
 - Karpenter AWS resources (SQS queue, IAM).
@@ -104,7 +104,7 @@ terraform validate
 terraform apply
 ```
 
-Approve the advertised VPC IPv4 and IPv6 routes in Tailscale after the subnet router instances appear:
+Approve the advertised VPC IPv4 and IPv6 routes in Tailscale after the subnet router instance appears:
 
 ```bash
 terraform output -raw tailscale_subnet_router_hostname
@@ -179,7 +179,7 @@ Do not reintroduce these unless the architecture is explicitly changed:
 - Root variables for `argocd_repo_url`, `argocd_target_revision`, `argocd_path`, `tailscale_oauth_client_id`, `tailscale_oauth_client_secret`, or old Tailscale UI hostnames.
 - `admin_password` variable, output, and any Terraform-managed secret values.
 - DynamoDB for state locking (S3 native locking supersedes it).
-- Single NAT instance (replaced by two subnet-router ASGs with cloud-init route management).
+- Single NAT instance (replaced by a single subnet-router ASG with cloud-init route management).
 - Plaintext secrets in Airflow values.yaml or Terraform argocd.tf.
 
 ## Important Files

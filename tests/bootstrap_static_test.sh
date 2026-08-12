@@ -127,8 +127,8 @@ if ! grep -q 'resource "aws_autoscaling_group" "subnet_router"' "$bootstrap_tf";
   exit 1
 fi
 
-if ! grep -q 'count = var.enable_bootstrap_instance ? 2 : 0' "$bootstrap_tf"; then
-  printf 'expected two subnet-router ASGs in different AZs\n' >&2
+if ! grep -q 'count = var.enable_bootstrap_instance ? 1 : 0' "$bootstrap_tf"; then
+  printf 'expected a single subnet-router ASG\n' >&2
   exit 1
 fi
 
@@ -282,14 +282,8 @@ if ! grep -q 'private_route_table_ids_by_router_az' "$bootstrap_tf"; then
   exit 1
 fi
 
-if ! grep -Fq 'module.vpc.private_route_table_ids[2]' "$bootstrap_tf"; then
-  printf 'expected third-AZ private route table to be assigned to a fixed subnet router\n' >&2
-  exit 1
-fi
-
-if ! grep -A4 -F 'local.subnet_router_azs[0]' "$bootstrap_tf" | grep -Fq 'module.vpc.private_route_table_ids[0]' || \
-  ! grep -A4 -F 'local.subnet_router_azs[0]' "$bootstrap_tf" | grep -Fq 'module.vpc.private_route_table_ids[2]'; then
-  printf 'expected first subnet-router AZ to receive private route tables 0 and 2\n' >&2
+if ! grep -A2 -F 'local.subnet_router_azs[0]' "$bootstrap_tf" | grep -Fq 'module.vpc.private_route_table_ids'; then
+  printf 'expected the single subnet router to receive all private route tables\n' >&2
   exit 1
 fi
 

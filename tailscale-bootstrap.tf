@@ -1,12 +1,6 @@
 locals {
   private_route_table_ids_by_router_az = {
-    (local.subnet_router_azs[0]) = [
-      module.vpc.private_route_table_ids[0],
-      module.vpc.private_route_table_ids[2],
-    ]
-    (local.subnet_router_azs[1]) = [
-      module.vpc.private_route_table_ids[1],
-    ]
+    (local.subnet_router_azs[0]) = module.vpc.private_route_table_ids
   }
 }
 
@@ -67,7 +61,7 @@ resource "aws_launch_template" "subnet_router" {
 }
 
 resource "aws_autoscaling_group" "subnet_router" {
-  count = var.enable_bootstrap_instance ? 2 : 0
+  count = var.enable_bootstrap_instance ? 1 : 0
 
   name                = "${local.name}-subnet-router-${local.subnet_router_azs[count.index]}"
   vpc_zone_identifier = [module.vpc.public_subnets[count.index]]

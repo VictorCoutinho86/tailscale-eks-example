@@ -1,6 +1,6 @@
 # Tailscale EKS Platform
 
-Production-grade private Amazon EKS platform accessed through two Tailscale subnet routers in two AZs. The VPC is dual-stack across three AZs, EKS Pods and Services use IPv6, normal IPv6 egress uses an egress-only internet gateway, and IPv4-only egress is translated by the subnet-router layer without AWS NAT Gateway. The third AZ sends IPv4 NAT and NAT64/DNS64 traffic to one fixed router. VPC subnet DNS64 is enabled for workloads, and each Ubuntu 24.04 subnet-router also runs local Unbound as a DNS64 fallback and diagnostic resolver with tayga for NAT64. Infrastructure is created by Terraform. Platform services are reconciled by Argo CD through a GitOps app-of-apps tree. All UIs are exposed through one shared internal dual-stack AWS Application Load Balancer, protected by ACM TLS, with DNS managed by ExternalDNS in Route 53.
+Production-grade private Amazon EKS platform accessed through a Tailscale subnet router. The VPC is dual-stack across three AZs, EKS Pods and Services use IPv6, normal IPv6 egress uses an egress-only internet gateway, and IPv4-only egress is translated by the subnet-router layer without AWS NAT Gateway. All AZs send IPv4 NAT and NAT64/DNS64 traffic to the single subnet-router. VPC subnet DNS64 is enabled for workloads, and the Ubuntu 24.04 subnet-router also runs local Unbound as a DNS64 fallback and diagnostic resolver with tayga for NAT64. Infrastructure is created by Terraform. Platform services are reconciled by Argo CD through a GitOps app-of-apps tree. All UIs are exposed through one shared internal dual-stack AWS Application Load Balancer, protected by ACM TLS, with DNS managed by ExternalDNS in Route 53.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ Regenerate the diagram:
 uv run --script docs/architecture_diagram.py
 ```
 
-The diagram shows three traffic planes: tailnet access to private endpoints through subnet-router routes, IPv6 workload egress through the egress-only internet gateway, and IPv4/NAT64 fallback through the Ubuntu subnet-router ASGs.
+The diagram shows three traffic planes: tailnet access to private endpoints through subnet-router routes, IPv6 workload egress through the egress-only internet gateway, and IPv4/NAT64 fallback through the Ubuntu subnet-router ASG.
 
 ## Prerequisites
 
@@ -126,7 +126,7 @@ https://spark-history.<domain>    (Spark History Server)
 |----------|------|
 | VPC (dual-stack public/private subnets, IPv6 egress-only IGW, DNS64, no NAT Gateway) | `network.tf`, `locals.tf` |
 | EKS cluster (private endpoint, KMS-encrypted secrets) | `eks.tf`, `kms.tf` |
-| Subnet router ASGs (2 spot instances across 2 AZs, Tailscale + IPv4 NAT + NAT64/DNS64) | `tailscale-bootstrap.tf` |
+| Subnet router ASG (1 spot instance, Tailscale + IPv4 NAT + NAT64/DNS64) | `tailscale-bootstrap.tf` |
 | Route 53 + ACM wildcard TLS | `route53-acm.tf` |
 | Karpenter (SQS queue, IAM) | `karpenter.tf` |
 | Pod Identity (EBS CSI, LBC, ExternalDNS, Airflow, Spark, Velero, Loki, CNPG, Spark History) | `pod-identity.tf`, `velero.tf`, `observability.tf`, `database.tf` |

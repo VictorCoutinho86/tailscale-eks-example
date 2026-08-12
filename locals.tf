@@ -23,7 +23,7 @@ locals {
 
   private_subnet_ipv6_prefixes = [3, 4, 5]
 
-  subnet_router_azs = slice(local.azs, 0, 2)
+  subnet_router_azs = slice(local.azs, 0, 1)
 
   subnet_router_primary_az = local.subnet_router_azs[0]
 
