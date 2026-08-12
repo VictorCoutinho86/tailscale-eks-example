@@ -149,6 +149,7 @@ spec:
   encryptedData:
     username: $(seal "$AIRFLOW_NS" "airflow-db-credentials" "username" "airflow")
     password: $(seal "$AIRFLOW_NS" "airflow-db-credentials" "password" "$AIRFLOW_DB_PASSWORD")
+    connection: $(seal "$AIRFLOW_NS" "airflow-db-credentials" "connection" "postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@airflow-db-rw.airflow.svc:5432/airflow")
   template:
     metadata:
       name: airflow-db-credentials

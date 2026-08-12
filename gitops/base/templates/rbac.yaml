@@ -65,3 +65,43 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: spark-driver
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airflow-secrets-backend
+  namespace: airflow
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airflow-secrets-backend
+  namespace: airflow
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+subjects:
+  - kind: ServiceAccount
+    name: airflow-api-server
+    namespace: airflow
+  - kind: ServiceAccount
+    name: airflow-scheduler
+    namespace: airflow
+  - kind: ServiceAccount
+    name: airflow-dag-processor
+    namespace: airflow
+  - kind: ServiceAccount
+    name: airflow-triggerer
+    namespace: airflow
+  - kind: ServiceAccount
+    name: airflow-task
+    namespace: airflow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: airflow-secrets-backend

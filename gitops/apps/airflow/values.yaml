@@ -1,4 +1,6 @@
 airflow:
+  defaultAirflowTag: "3.3.0"
+  airflowVersion: "3.3.0"
   fernetKeySecretName: airflow-fernet-key
   jwtSecretName: airflow-jwt-secret
   apiSecretKeySecretName: airflow-api-secret-key
@@ -6,16 +8,7 @@ airflow:
   postgresql:
     enabled: false
   data:
-    metadataConnection:
-      user: airflow
-      pass: ""
-      host: airflow-db-rw.airflow.svc
-      port: 5432
-      database: airflow
-      existingSecret: airflow-db-credentials
-      existingSecretKeys:
-        user: username
-        pass: password
+    metadataSecretName: airflow-db-credentials
   rbac:
     create: true
   dags:
@@ -83,6 +76,9 @@ airflow:
   statsd:
     enabled: true
   config:
+    secrets:
+      backend: airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
+      backend_kwargs: '{"connections_label": "airflow.apache.org/connection-id", "variables_label": "airflow.apache.org/variable-key"}'
     metrics:
       statsd_on: "True"
       statsd_host: localhost

@@ -638,7 +638,35 @@ if ! grep -A1 'postgresql:' gitops/apps/airflow/values.yaml | grep -q 'enabled: 
   exit 1
 fi
 
-if ! grep -q 'airflow-db-rw.airflow.svc' gitops/apps/airflow/values.yaml; then
+if ! grep -q 'airflow-db-rw.airflow.svc' scripts/seal-secrets.sh; then
   printf 'expected Airflow to connect to CloudNativePG cluster\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'metadataSecretName: airflow-db-credentials' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'connection:' gitops/apps/airflow-db/templates/db-credentials-sealed-secret.yaml || \
+  ! grep -q 'postgresql+psycopg2://airflow' scripts/seal-secrets.sh; then
+  printf 'expected Airflow metadata database connection to use the sealed connection secret required by the chart\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'defaultAirflowTag: "3.3.0"' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'airflowVersion: "3.3.0"' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow image and compatibility version pinned to 3.3.0\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'KubernetesSecretsBackend' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'airflow.apache.org/connection-id' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'airflow.apache.org/variable-key' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow variables and connections to use Kubernetes Secrets backend\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'name: airflow-secrets-backend' gitops/base/templates/rbac.yaml || \
+  ! grep -q 'resources: \["secrets"\]' gitops/base/templates/rbac.yaml || \
+  ! grep -q 'name: airflow-api-server' gitops/base/templates/rbac.yaml || \
+  ! grep -q 'name: airflow-task' gitops/base/templates/rbac.yaml; then
+  printf 'expected Airflow service accounts to read Kubernetes Secrets for variables and connections backend\n' >&2
   exit 1
 fi
