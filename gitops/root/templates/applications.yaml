@@ -8,7 +8,7 @@
   (dict "name" "cloudnative-pg" "path" "gitops/apps/cloudnative-pg" "namespace" "cnpg-system" "wave" "1")
   (dict "name" "velero" "path" "gitops/apps/velero" "namespace" "velero" "wave" "1")
   (dict "name" "argocd" "path" "gitops/apps/argocd" "namespace" "argocd" "wave" "2")
-  (dict "name" "karpenter" "path" "gitops/apps/karpenter" "namespace" "karpenter" "wave" "2")
+  (dict "name" "karpenter" "path" "gitops/apps/karpenter" "namespace" "karpenter" "wave" "1")
   (dict "name" "kube-prometheus-stack" "path" "gitops/apps/kube-prometheus-stack" "namespace" "monitoring" "wave" "2")
   (dict "name" "karpenter-resources" "path" "gitops/apps/karpenter-resources/chart" "namespace" "karpenter" "wave" "3")
   (dict "name" "airflow-db" "path" "gitops/apps/airflow-db" "namespace" "airflow" "wave" "3")

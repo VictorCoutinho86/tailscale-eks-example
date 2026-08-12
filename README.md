@@ -144,8 +144,8 @@ https://spark-history.<domain>    (Spark History Server)
 | 1 | `sealed-secrets` | Secret encryption (generates own key) |
 | 1 | `cloudnative-pg` | PostgreSQL operator |
 | 1 | `velero` | Cluster backup (S3 + EBS snapshots) |
+| 1 | `karpenter` | Node provisioning |
 | 2 | `argocd` | Argo CD (self-managed) |
-| 2 | `karpenter` | Node provisioning |
 | 2 | `kube-prometheus-stack` | Grafana + Prometheus + AlertManager |
 | 3 | `karpenter-resources` | EC2NodeClass + NodePools |
 | 3 | `airflow-db` | CloudNativePG PostgreSQL cluster |
