@@ -1,9 +1,9 @@
 apiVersion: v2
-name: promtail-platform
-description: Platform-managed Promtail
+name: alloy-platform
+description: Platform-managed Grafana Alloy
 type: application
 version: 0.1.0
 dependencies:
-  - name: promtail
-    version: 6.16.6
+  - name: alloy
+    version: 1.11.1
     repository: https://grafana.github.io/helm-charts

@@ -161,14 +161,14 @@ if grep -q 'depends_on.*autoscaling_group' eks.tf; then
   exit 1
 fi
 
-for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki promtail airflow-db spark-history-server otel-collector; do
+for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db spark-history-server otel-collector; do
   if ! grep -R -q "\"name\" \"${app}\"" gitops/root/templates; then
     printf 'expected root app-of-apps to define %s application\n' "$app" >&2
     exit 1
   fi
 done
 
-for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki promtail airflow-db spark-history-server otel-collector; do
+for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db spark-history-server otel-collector; do
   if ! test -e "gitops/apps/${app_dir}" && ! test -e "gitops/${app_dir}"; then
     printf 'expected GitOps source for %s\n' "$app_dir" >&2
     exit 1
@@ -206,6 +206,24 @@ fi
 
 if grep -A4 'traces:' gitops/apps/otel-collector/values.yaml | grep -q 'otlphttp'; then
   printf 'expected OpenTelemetry Collector not to send traces to Loki OTLP endpoint\n' >&2
+  exit 1
+fi
+
+if test -e gitops/apps/promtail; then
+  printf 'expected promtail to be removed in favor of Grafana Alloy\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'loki.source.kubernetes' gitops/apps/alloy/values.yaml || \
+  ! grep -q 'loki.write' gitops/apps/alloy/values.yaml || \
+  ! grep -q 'loki.monitoring:3100/loki/api/v1/push' gitops/apps/alloy/values.yaml; then
+  printf 'expected Grafana Alloy to collect Kubernetes pod logs and ship to Loki\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'name: alloy' gitops/apps/alloy/Chart.yaml || \
+  ! grep -q 'repository: https://grafana.github.io/helm-charts' gitops/apps/alloy/Chart.yaml; then
+  printf 'expected Grafana Alloy chart dependency\n' >&2
   exit 1
 fi
 

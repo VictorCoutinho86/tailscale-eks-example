@@ -68,7 +68,7 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - `gitops/apps/` service charts for 17 applications:
   - Wave 1: aws-load-balancer-controller, external-dns, sealed-secrets, cloudnative-pg, velero
   - Wave 2: argocd, karpenter, kube-prometheus-stack
-  - Wave 3: karpenter-resources, airflow-db, loki, promtail
+  - Wave 3: karpenter-resources, airflow-db, loki, alloy
   - Wave 4: airflow, spark-operator, spark-history-server, kubecost, otel-collector
 
 ## Required Local Configuration

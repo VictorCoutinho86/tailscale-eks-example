@@ -150,7 +150,7 @@ https://spark-history.<domain>    (Spark History Server)
 | 3 | `karpenter-resources` | EC2NodeClass + NodePools |
 | 3 | `airflow-db` | CloudNativePG PostgreSQL cluster |
 | 3 | `loki` | Log aggregation (S3 backend) |
-| 3 | `promtail` | Log collection (DaemonSet) |
+| 3 | `alloy` | Log collection (Grafana Alloy DaemonSet) |
 | 4 | `airflow` | Workflow orchestrator (KubernetesExecutor) |
 | 4 | `spark-operator` | Spark job management |
 | 4 | `spark-history-server` | Event log viewer |
@@ -166,7 +166,7 @@ Some app wrapper `values.yaml` files keep `CHANGEME` placeholders as safe chart 
 - HA: 2 apiServer replicas + 2 scheduler replicas across nodes
 - Metrics: StatsD → Prometheus (ServiceMonitor)
 - Task remote logs: S3
-- Pod/container logs: Promtail → Loki
+- Pod/container logs: Grafana Alloy → Loki
 - OTLP application logs: OpenTelemetry Collector → Loki for workloads that emit OTLP logs
 
 ### Security

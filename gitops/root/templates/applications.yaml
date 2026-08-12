@@ -13,7 +13,7 @@
   (dict "name" "karpenter-resources" "path" "gitops/apps/karpenter-resources/chart" "namespace" "karpenter" "wave" "3")
   (dict "name" "airflow-db" "path" "gitops/apps/airflow-db" "namespace" "airflow" "wave" "3")
   (dict "name" "loki" "path" "gitops/apps/loki" "namespace" "monitoring" "wave" "3")
-  (dict "name" "promtail" "path" "gitops/apps/promtail" "namespace" "monitoring" "wave" "3")
+  (dict "name" "alloy" "path" "gitops/apps/alloy" "namespace" "monitoring" "wave" "3")
   (dict "name" "airflow" "path" "gitops/apps/airflow" "namespace" "airflow" "wave" "4")
   (dict "name" "spark-operator" "path" "gitops/apps/spark-operator" "namespace" "spark-operator" "wave" "4")
   (dict "name" "kubecost" "path" "gitops/apps/kubecost" "namespace" "kubecost" "wave" "4")
