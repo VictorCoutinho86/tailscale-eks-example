@@ -82,9 +82,29 @@ spec:
 {{ else if eq $app.name "airflow" }}
         airflow:
           createUserJob:
-            defaultUser:
-              existingSecret: airflow-admin-credentials
-              existingSecretKey: admin-password
+            env:
+              - name: AIRFLOW_ADMIN_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: airflow-admin-credentials
+                    key: admin-password
+            args:
+              - "bash"
+              - "-c"
+              - 'exec airflow users create "$@"'
+              - "--"
+              - "-r"
+              - "Admin"
+              - "-u"
+              - "admin"
+              - "-e"
+              - "admin@example.com"
+              - "-f"
+              - "admin"
+              - "-l"
+              - "user"
+              - "-p"
+              - "$(AIRFLOW_ADMIN_PASSWORD)"
           config:
             core:
               xcom_backend: airflow.providers.common.io.xcom.backend.XComObjectStorageBackend
@@ -113,7 +133,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      {{- if eq $app.name "spark-operator" }}
+      {{- if has $app.name (list "spark-operator" "cloudnative-pg") }}
       - ServerSideApply=true
       {{- end }}
 {{- end }}

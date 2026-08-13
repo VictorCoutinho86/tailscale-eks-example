@@ -259,7 +259,7 @@ if grep -A8 'spark:' gitops/apps/spark-operator/values.yaml | grep -q '^[[:space
   exit 1
 fi
 
-if grep -A10 'spark-operator:' gitops/root/templates/applications.yaml | grep -A8 'spark:' | grep -q '^[[:space:]]*env:'; then
+if grep -A10 'spark-operator:' gitops/root/templates/applications.yaml | grep -A3 'spark:' | grep -q '^[[:space:]]*env:'; then
   printf 'expected Spark Operator root overrides not to use unsupported spark.env\n' >&2
   exit 1
 fi
@@ -290,8 +290,9 @@ if grep -q 'Values.adminPassword' gitops/root/templates/applications.yaml; then
   exit 1
 fi
 
-if ! grep -q 'existingSecret: airflow-admin-credentials' gitops/root/templates/applications.yaml; then
-  printf 'expected Airflow createUserJob to reference existing airflow-admin-credentials secret\n' >&2
+if ! grep -q 'name: airflow-admin-credentials' gitops/root/templates/applications.yaml || \
+  ! grep -q 'key: admin-password' gitops/root/templates/applications.yaml; then
+  printf 'expected Airflow createUserJob to reference the airflow-admin-credentials secret\n' >&2
   exit 1
 fi
 
@@ -408,6 +409,11 @@ fi
 
 if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'spark-operator'; then
   printf 'expected spark-operator Application to use ServerSideApply=true for large CRDs\n' >&2
+  exit 1
+fi
+
+if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | grep -q 'cloudnative-pg'; then
+  printf 'expected cloudnative-pg Application to use ServerSideApply=true for large CRDs\n' >&2
   exit 1
 fi
 
