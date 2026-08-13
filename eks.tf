@@ -6,6 +6,8 @@ module "eks" {
   kubernetes_version = var.cluster_version
   ip_family          = "ipv6"
 
+  dataplane_wait_duration = "120s"
+
   create_cni_ipv6_iam_policy = true
 
   endpoint_public_access  = false
@@ -34,8 +36,8 @@ module "eks" {
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
           WARM_PREFIX_TARGET       = "1"
-          ENABLE_NETWORK_POLICY    = "true"
         }
+        enableNetworkPolicy = "true"
       })
     }
 

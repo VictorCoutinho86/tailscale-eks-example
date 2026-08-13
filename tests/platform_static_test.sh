@@ -531,6 +531,11 @@ if ! grep -q 'create_cni_ipv6_iam_policy *= *true' eks.tf; then
   exit 1
 fi
 
+if ! grep -q 'dataplane_wait_duration' eks.tf; then
+  printf 'expected EKS module to wait for the VPC CNI addon before creating the node group\n' >&2
+  exit 1
+fi
+
 if ! grep -Eq 'cluster_ip_family[[:space:]]*=[[:space:]]*module\.eks\.cluster_ip_family' karpenter.tf; then
   printf 'expected Karpenter module to use the EKS cluster IP family\n' >&2
   exit 1
@@ -621,7 +626,7 @@ if ! test -f gitops/base/templates/network-policies.yaml; then
   exit 1
 fi
 
-if ! grep -q 'ENABLE_NETWORK_POLICY.*true' eks.tf; then
+if ! grep -q 'enableNetworkPolicy.*"true"' eks.tf; then
   printf 'expected VPC CNI network policy enabled\n' >&2
   exit 1
 fi
