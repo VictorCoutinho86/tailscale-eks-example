@@ -14,7 +14,7 @@ spec:
 
   storage:
     size: 10Gi
-    storageClass: ebs-sc
+    storageClass: gp3
 
   resources:
     requests:

@@ -683,6 +683,11 @@ if ! test -f gitops/apps/airflow-db/templates/cluster.yaml; then
   exit 1
 fi
 
+if ! grep -q 'storageClass: gp3' gitops/apps/airflow-db/templates/cluster.yaml; then
+  printf 'expected airflow-db Cluster to use the base gp3 StorageClass\n' >&2
+  exit 1
+fi
+
 if ! grep -A1 'postgresql:' gitops/apps/airflow/values.yaml | grep -q 'enabled: false'; then
   printf 'expected Airflow bundled PostgreSQL disabled\n' >&2
   exit 1
