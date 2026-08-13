@@ -18,13 +18,23 @@ SEALED_SECRETS_CONTROLLER="sealed-secrets-controller"
 echo "==> Checking prerequisites..."
 command -v kubeseal >/dev/null 2>&1 || { echo "ERROR: kubeseal not found. Install: brew install kubeseal"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "ERROR: kubectl not found"; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "ERROR: curl not found"; exit 1; }
 command -v htpasswd >/dev/null 2>&1 || { echo "ERROR: htpasswd not found (needed for bcrypt)"; exit 1; }
 
 echo "==> Fetching Sealed Secrets controller certificate from ${SEALED_SECRETS_NS}/${SEALED_SECRETS_CONTROLLER}..."
-kubeseal --fetch-cert \
-  --controller-name "${SEALED_SECRETS_CONTROLLER}" \
-  --controller-namespace "${SEALED_SECRETS_NS}" \
-  > /tmp/sealed-secrets-cert.pem
+# kubeseal --fetch-cert hangs on IPv6-only clusters; fetch the cert via port-forward instead.
+CERT_PORT=8080
+kubectl port-forward -n "${SEALED_SECRETS_NS}" "svc/${SEALED_SECRETS_CONTROLLER}" "${CERT_PORT}:8080" >/dev/null 2>&1 &
+PORT_FORWARD_PID=$!
+for _ in $(seq 1 30); do
+  curl -fsS -m 5 "http://127.0.0.1:${CERT_PORT}/v1/cert.pem" -o /tmp/sealed-secrets-cert.pem 2>/dev/null && break
+  sleep 1
+done
+kill "${PORT_FORWARD_PID}" 2>/dev/null || true
+if ! test -s /tmp/sealed-secrets-cert.pem; then
+  echo "ERROR: failed to fetch Sealed Secrets controller certificate" >&2
+  exit 1
+fi
 
 seal() {
   local namespace="$1" name="$2" key="$3" value="$4"
