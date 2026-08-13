@@ -227,6 +227,17 @@ if ! grep -q 'name: alloy' gitops/apps/alloy/Chart.yaml || \
   exit 1
 fi
 
+if grep -q 'listenAddr: "::"' gitops/apps/alloy/values.yaml; then
+  printf 'expected Alloy listen address not to use the invalid :::<port> form\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'kubectl:' gitops/apps/velero/values.yaml || \
+  ! grep -q 'tag: "1.32"' gitops/apps/velero/values.yaml; then
+  printf 'expected Velero upgrade CRDs job to pin a valid bitnami/kubectl image tag\n' >&2
+  exit 1
+fi
+
 if ! grep -q 'webhook:' gitops/apps/spark-operator/values.yaml || \
   ! grep -A2 'webhook:' gitops/apps/spark-operator/values.yaml | grep -q 'enable: true'; then
   printf 'expected Spark Operator webhook to remain enabled for supported SparkApplication mutation\n' >&2

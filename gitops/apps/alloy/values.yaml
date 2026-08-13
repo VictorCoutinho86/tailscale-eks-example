@@ -1,7 +1,6 @@
 alloy:
   namespaceOverride: monitoring
   alloy:
-    listenAddr: "::"
     configMap:
       create: true
       content: |
