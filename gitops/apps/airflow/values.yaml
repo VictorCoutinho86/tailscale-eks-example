@@ -19,7 +19,11 @@ airflow:
       enabled: false
   apiServer:
     replicas: 2
-    args: ["bash", "-c", "exec airflow api-server --host ::"]
+    env:
+      - name: AIRFLOW__API__HOST
+        value: "::"
+      - name: AIRFLOW__API__PORT
+        value: "8080"
     topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname

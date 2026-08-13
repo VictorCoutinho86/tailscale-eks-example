@@ -412,8 +412,9 @@ if ! grep -q 'failureThreshold: 30' gitops/apps/airflow/values.yaml || \
   exit 1
 fi
 
-if ! grep -q 'airflow api-server --host ::' gitops/apps/airflow/values.yaml; then
-  printf 'expected Airflow api-server to bind to IPv6\n' >&2
+if ! grep -q 'AIRFLOW__API__HOST' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'value: "::"' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow api-server to bind to IPv6 via env\n' >&2
   exit 1
 fi
 
