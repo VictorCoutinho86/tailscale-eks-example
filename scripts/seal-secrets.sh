@@ -200,6 +200,32 @@ EOF
 rm -f /tmp/sealed-secrets-cert.pem
 
 echo ""
+echo "==> Sealing Grafana admin credentials..."
+
+GRAFANA_ADMIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
+
+cat > gitops/apps/kube-prometheus-stack/templates/grafana-admin-credentials-sealed-secret.yaml <<EOF
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: grafana-admin-credentials
+  namespace: monitoring
+  annotations:
+    sealedsecrets.bitnami.com/namespace-wide: "true"
+spec:
+  encryptedData:
+    admin-user: $(seal "monitoring" "grafana-admin-credentials" "admin-user" "admin")
+    admin-password: $(seal "monitoring" "grafana-admin-credentials" "admin-password" "$GRAFANA_ADMIN_PASSWORD")
+  template:
+    metadata:
+      name: grafana-admin-credentials
+      namespace: monitoring
+      labels:
+        app.kubernetes.io/part-of: monitoring
+    type: Opaque
+EOF
+
+echo ""
 echo "==> Applying SealedSecret manifests..."
 kubectl apply \
   -f gitops/apps/airflow/templates/fernet-key-sealed-secret.yaml \
@@ -207,7 +233,8 @@ kubectl apply \
   -f gitops/apps/airflow/templates/api-secret-key-sealed-secret.yaml \
   -f gitops/apps/airflow/templates/admin-password-sealed-secret.yaml \
   -f gitops/apps/airflow-db/templates/db-credentials-sealed-secret.yaml \
-  -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml
+  -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml \
+  -f gitops/apps/kube-prometheus-stack/templates/grafana-admin-credentials-sealed-secret.yaml
 
 echo ""
 echo "==> Done!"
@@ -216,6 +243,7 @@ echo "Generated passwords (store securely):"
 echo "  Airflow admin:  ${AIRFLOW_ADMIN_PASSWORD}"
 echo "  Airflow DB:     ${AIRFLOW_DB_PASSWORD}"
 echo "  Argo CD admin:  ${ARGOCD_ADMIN_PASSWORD}"
+echo "  Grafana admin:  ${GRAFANA_ADMIN_PASSWORD}"
 echo ""
 echo "SealedSecret manifests updated and applied. Verify with: git diff gitops/"
 echo ""

@@ -1,4 +1,4 @@
-{{- range $namespace := list "argocd" "airflow" "kubecost" "spark-operator" .Values.global.sparkWorkloadNamespace "karpenter" "sealed-secrets" }}
+{{- range $namespace := list "argocd" "airflow" "kubecost" "spark-operator" .Values.global.sparkWorkloadNamespace "karpenter" "sealed-secrets" "monitoring" }}
 ---
 apiVersion: v1
 kind: Namespace
