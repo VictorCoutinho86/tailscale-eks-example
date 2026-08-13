@@ -17,7 +17,6 @@
   (dict "name" "airflow" "path" "gitops/apps/airflow" "namespace" "airflow" "wave" "4")
   (dict "name" "spark-operator" "path" "gitops/apps/spark-operator" "namespace" "spark-operator" "wave" "4")
   (dict "name" "kubecost" "path" "gitops/apps/kubecost" "namespace" "kubecost" "wave" "4")
-  (dict "name" "spark-history-server" "path" "gitops/apps/spark-history-server" "namespace" "spark-history" "wave" "4")
   (dict "name" "otel-collector" "path" "gitops/apps/otel-collector" "namespace" "monitoring" "wave" "4")
 -}}
 {{- range $app := $apps }}

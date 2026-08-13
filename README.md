@@ -115,7 +115,6 @@ https://argocd.<domain>
 https://airflow.<domain>
 https://kubecost.<domain>
 https://monitoring.<domain>       (Grafana)
-https://spark-history.<domain>    (Spark History Server)
 ```
 
 ## What's Inside
@@ -129,7 +128,7 @@ https://spark-history.<domain>    (Spark History Server)
 | Subnet router ASG (1 spot instance, Tailscale + IPv4 NAT + NAT64/DNS64) | `tailscale-bootstrap.tf` |
 | Route 53 + ACM wildcard TLS | `route53-acm.tf` |
 | Karpenter (SQS queue, IAM) | `karpenter.tf` |
-| Pod Identity (EBS CSI, LBC, ExternalDNS, Airflow, Spark, Velero, Loki, CNPG, Spark History) | `pod-identity.tf`, `velero.tf`, `observability.tf`, `database.tf` |
+| Pod Identity (EBS CSI, LBC, ExternalDNS, Airflow, Spark, Velero, Loki, CNPG) | `pod-identity.tf`, `velero.tf`, `observability.tf`, `database.tf` |
 | S3 backend (state locking, no DynamoDB) | `backend.tf` |
 | Argo CD bootstrap | `argocd.tf` |
 | S3 buckets (Velero, Loki, ALB logs, Spark events, CNPG backups) | `velero.tf`, `observability.tf`, `database.tf` |
@@ -153,7 +152,6 @@ https://spark-history.<domain>    (Spark History Server)
 | 3 | `alloy` | Log collection (Grafana Alloy DaemonSet) |
 | 4 | `airflow` | Workflow orchestrator (KubernetesExecutor) |
 | 4 | `spark-operator` | Spark job management |
-| 4 | `spark-history-server` | Event log viewer |
 | 4 | `kubecost` | Cost analytics |
 | 4 | `otel-collector` | OTLP log collection → Loki |
 
@@ -192,7 +190,6 @@ Some app wrapper `values.yaml` files keep `CHANGEME` placeholders as safe chart 
 - Prometheus: 50 GB / 15 days retention
 - Loki: log aggregation from all pods
 - Alert rules: node health, pod crashes, PVC usage, Karpenter capacity, Velero failures
-- Spark History Server at `spark-history.<domain>`
 
 ## Validation
 

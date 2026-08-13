@@ -138,36 +138,3 @@ module "loki_pod_identity" {
   depends_on = [module.eks]
   tags       = local.tags
 }
-
-module "spark_history_pod_identity" {
-  source  = "terraform-aws-modules/eks-pod-identity/aws"
-  version = "~> 2.0"
-
-  name = "${local.name}-spark-history"
-
-  policy_statements = [
-    {
-      sid    = "SparkHistoryS3Read"
-      effect = "Allow"
-      actions = [
-        "s3:GetObject",
-        "s3:ListBucket",
-      ]
-      resources = [
-        aws_s3_bucket.spark_events.arn,
-        "${aws_s3_bucket.spark_events.arn}/*",
-      ]
-    },
-  ]
-
-  associations = {
-    spark_history = {
-      cluster_name    = local.name
-      namespace       = "spark-history"
-      service_account = "spark-history"
-    }
-  }
-
-  depends_on = [module.eks]
-  tags       = local.tags
-}

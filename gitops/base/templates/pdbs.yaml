@@ -114,16 +114,3 @@ spec:
   selector:
     matchLabels:
       component: scheduler
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: spark-history-server
-  namespace: spark-history
-  labels:
-    app.kubernetes.io/part-of: platform
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: spark-history-server

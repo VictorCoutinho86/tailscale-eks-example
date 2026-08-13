@@ -13,7 +13,7 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - The subnet router runs as a single spot-backed Auto Scaling Group in one AZ.
 - All AZs route IPv4 NAT and NAT64/DNS64 traffic to the single subnet-router.
 - The subnet router advertises the VPC IPv4 and IPv6 CIDRs through Tailscale.
-- Argo CD, Airflow, Kubecost, Grafana, and Spark History Server are exposed through one shared internal dual-stack AWS Application Load Balancer.
+- Argo CD, Airflow, Kubecost, and Grafana are exposed through one shared internal dual-stack AWS Application Load Balancer.
 - The ALB uses host-based routing with TLS 1.2 minimum.
 - TLS is handled by an ACM wildcard certificate for `*.${route53_domain_name}`.
 - DNS records are managed by ExternalDNS in an existing public Route 53 hosted zone.
@@ -52,7 +52,7 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - Private-only IPv6 EKS cluster with KMS secrets encryption, CloudWatch log retention (90 days), VPC CNI network policy enabled, default managed node group.
 - EKS addons: VPC CNI, EKS Pod Identity Agent, CoreDNS, kube-proxy, EBS CSI driver.
 - Karpenter AWS resources (SQS queue, IAM).
-- Pod Identity roles for EBS CSI, AWS Load Balancer Controller, ExternalDNS, Airflow tasks, Spark workloads, Velero, Loki, CloudNativePG, and Spark History Server.
+- Pod Identity roles for EBS CSI, AWS Load Balancer Controller, ExternalDNS, Airflow tasks, Spark workloads, Velero, Loki, and CloudNativePG.
 - S3 buckets: Velero (backups), Loki (logs), ALB access logs, Spark events, CNPG backups.
 - Existing public Route 53 hosted zone discovery.
 - ACM wildcard certificate and DNS validation records.
@@ -65,11 +65,11 @@ This repository is a production-grade private Amazon EKS platform accessed throu
 - Argo CD root Application bootstrapped by Terraform (`helm_release.argocd_root_application`).
 - GitOps tree under `gitops/` with app-of-apps pattern.
 - `gitops/base/` Helm chart: namespaces, StorageClass, service accounts, RBAC, Ingresses, PDBs, NetworkPolicies, AlertRules, ServiceMonitors.
-- `gitops/apps/` service charts for 17 applications:
+- `gitops/apps/` service charts for 16 applications:
   - Wave 1: aws-load-balancer-controller, external-dns, sealed-secrets, cloudnative-pg, velero, karpenter
   - Wave 2: argocd, kube-prometheus-stack
   - Wave 3: karpenter-resources, airflow-db, loki, alloy
-  - Wave 4: airflow, spark-operator, spark-history-server, kubecost, otel-collector
+  - Wave 4: airflow, spark-operator, kubecost, otel-collector
 
 ## Required Local Configuration
 
@@ -161,7 +161,6 @@ https://argocd.<route53_domain_name>
 https://airflow.<route53_domain_name>
 https://kubecost.<route53_domain_name>
 https://monitoring.<route53_domain_name>
-https://spark-history.<route53_domain_name>
 ```
 
 ## Removed Paths To Avoid
@@ -194,7 +193,7 @@ Do not reintroduce these unless the architecture is explicitly changed:
 - `bootstrap-iam.tf`: SG, IAM role, NAT routing permissions.
 - `pod-identity.tf`: Pod Identity for EBS CSI, LBC, ExternalDNS, Airflow, Spark.
 - `velero.tf`: S3 bucket + Pod Identity for Velero backups.
-- `observability.tf`: S3 buckets + Pod Identity for Loki, ALB logs, Spark events, Spark History.
+- `observability.tf`: S3 buckets + Pod Identity for Loki, ALB logs, Spark events.
 - `database.tf`: S3 bucket + Pod Identity for CloudNativePG backups.
 - `route53-acm.tf`: public Route 53 hosted zone discovery, ACM wildcard certificate, DNS validation records.
 - `karpenter.tf`: Karpenter interruption queue and IAM.

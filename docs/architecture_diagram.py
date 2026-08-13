@@ -83,7 +83,6 @@ with Diagram(
                 airflow = Pod("Airflow\nKubernetesExecutor")
                 kubecost = Pod("Kubecost")
                 spark_operator = Deploy("Spark Operator")
-                spark_history = Pod("Spark History\nServer")
                 loki = Pod("Loki\nlog agg")
                 otel = Pod("OTel Collector")
 
@@ -92,7 +91,6 @@ with Diagram(
                 airflow_ingress = Ingress("airflow.*")
                 kubecost_ingress = Ingress("kubecost.*")
                 monitoring_ingress = Ingress("monitoring.*")
-                spark_ingress = Ingress("spark-history.*")
 
         s3_velero = S3("Velero\nbackups")
         s3_loki = S3("Loki\nlogs")
@@ -137,7 +135,6 @@ with Diagram(
     argocd >> Edge(label="reconciles") >> airflow
     argocd >> Edge(label="reconciles") >> kubecost
     argocd >> Edge(label="reconciles") >> spark_operator
-    argocd >> Edge(label="reconciles") >> spark_history
     argocd >> Edge(label="reconciles") >> loki
     argocd >> Edge(label="reconciles") >> otel
 
@@ -150,7 +147,6 @@ with Diagram(
     internal_alb >> airflow_ingress >> airflow
     internal_alb >> kubecost_ingress >> kubecost
     internal_alb >> monitoring_ingress >> prometheus
-    internal_alb >> spark_ingress >> spark_history
 
     # Node placement
     default_nodes >> aws_lb
@@ -166,7 +162,7 @@ with Diagram(
     velero >> Edge(label="backups") >> s3_velero
     loki >> Edge(label="chunks") >> s3_loki
     otel >> Edge(label="OTLP logs") >> loki
-    spark_history >> Edge(label="reads events") >> s3_spark
+    spark_operator >> Edge(label="event logs") >> s3_spark
 
     # VPC endpoint
     vpc >> s3_endpoint >> s3

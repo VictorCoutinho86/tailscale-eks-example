@@ -161,14 +161,14 @@ if grep -q 'depends_on.*autoscaling_group' eks.tf; then
   exit 1
 fi
 
-for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db spark-history-server otel-collector; do
+for app in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db otel-collector; do
   if ! grep -R -q "\"name\" \"${app}\"" gitops/root/templates; then
     printf 'expected root app-of-apps to define %s application\n' "$app" >&2
     exit 1
   fi
 done
 
-for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db spark-history-server otel-collector; do
+for app_dir in base argocd aws-load-balancer-controller external-dns karpenter karpenter-resources airflow spark-operator kubecost sealed-secrets velero cloudnative-pg kube-prometheus-stack loki alloy airflow-db otel-collector; do
   if ! test -e "gitops/apps/${app_dir}" && ! test -e "gitops/${app_dir}"; then
     printf 'expected GitOps source for %s\n' "$app_dir" >&2
     exit 1
@@ -182,8 +182,7 @@ fi
 
 for ingress_file in \
   gitops/base/templates/ingresses.yaml \
-  gitops/apps/kube-prometheus-stack/values.yaml \
-  gitops/apps/spark-history-server/values.yaml; do
+  gitops/apps/kube-prometheus-stack/values.yaml; do
   if ! grep -Fq 'alb.ingress.kubernetes.io/ip-address-type: dualstack' "$ingress_file"; then
     printf 'expected ALB ingress in %s to request dualstack address type\n' "$ingress_file" >&2
     exit 1
