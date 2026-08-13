@@ -30,7 +30,7 @@ module "eks" {
 
   addons = {
     vpc-cni = {
-      most_recent    = true
+      addon_version  = "v1.22.4-eksbuild.3"
       before_compute = true
       configuration_values = jsonencode({
         enableNetworkPolicy = "true"
