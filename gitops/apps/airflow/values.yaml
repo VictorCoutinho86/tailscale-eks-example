@@ -26,6 +26,11 @@ airflow:
         labelSelector:
           matchLabels:
             component: api-server
+    startupProbe:
+      failureThreshold: 30
+      periodSeconds: 10
+    livenessProbe:
+      timeoutSeconds: 20
     resources:
       requests:
         memory: 512Mi
@@ -40,12 +45,19 @@ airflow:
         labelSelector:
           matchLabels:
             component: scheduler
+    startupProbe:
+      failureThreshold: 30
+      periodSeconds: 10
+    livenessProbe:
+      timeoutSeconds: 60
     resources:
       requests:
         memory: 256Mi
       limits:
         memory: 900Mi
   triggerer:
+    livenessProbe:
+      timeoutSeconds: 60
     resources:
       requests:
         memory: 256Mi
@@ -54,6 +66,8 @@ airflow:
     persistence:
       enabled: false
   dagProcessor:
+    livenessProbe:
+      timeoutSeconds: 60
     dagBundleConfigList:
       - name: dags-repository
         classpath: airflow.providers.git.bundles.git.GitDagBundle

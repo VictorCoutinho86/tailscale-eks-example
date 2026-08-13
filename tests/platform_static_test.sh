@@ -401,6 +401,17 @@ if ! test -f gitops/apps/kube-prometheus-stack/templates/grafana-admin-credentia
   exit 1
 fi
 
+if ! grep -q 'monitoring.{{ .Values.global.domain }}' gitops/apps/kube-prometheus-stack/values.yaml; then
+  printf 'expected Grafana ingress hostname to use the templated global domain\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'failureThreshold: 30' gitops/apps/airflow/values.yaml || \
+  ! grep -q 'timeoutSeconds: 60' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow probes to allow for pip-install startup and slow job checks\n' >&2
+  exit 1
+fi
+
 if ! grep -q '"monitoring"' gitops/base/templates/namespaces.yaml; then
   printf 'expected base namespaces to include monitoring\n' >&2
   exit 1

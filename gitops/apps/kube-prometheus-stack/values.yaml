@@ -20,7 +20,7 @@ kube-prometheus-stack:
       enabled: true
       ingressClassName: alb
       hosts:
-        - monitoring.CHANGEME
+        - monitoring.{{ .Values.global.domain }}
       annotations:
         alb.ingress.kubernetes.io/scheme: internal
         alb.ingress.kubernetes.io/target-type: ip
