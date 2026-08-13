@@ -197,8 +197,6 @@ spec:
     type: Opaque
 EOF
 
-rm -f /tmp/sealed-secrets-cert.pem
-
 echo ""
 echo "==> Sealing Grafana admin credentials..."
 
@@ -224,6 +222,8 @@ spec:
         app.kubernetes.io/part-of: monitoring
     type: Opaque
 EOF
+
+rm -f /tmp/sealed-secrets-cert.pem
 
 echo ""
 echo "==> Applying SealedSecret manifests..."
