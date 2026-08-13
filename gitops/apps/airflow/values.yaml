@@ -19,7 +19,7 @@ airflow:
       enabled: false
   apiServer:
     replicas: 2
-    args: ["bash", "-c", "exec airflow api-server --hostname ::"]
+    args: ["bash", "-c", "exec airflow api-server --hostname [::]"]
     topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
