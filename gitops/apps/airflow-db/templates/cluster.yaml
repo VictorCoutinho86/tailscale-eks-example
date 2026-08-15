@@ -19,10 +19,10 @@ spec:
   resources:
     requests:
       memory: 2Gi
-      cpu: 1
+      cpu: "1"
     limits:
       memory: 2Gi
-      cpu: 1
+      cpu: "1"
 
   monitoring:
     enablePodMonitor: true

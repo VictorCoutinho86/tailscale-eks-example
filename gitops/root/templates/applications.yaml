@@ -127,38 +127,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ $app.namespace | quote }}
-{{- if eq $app.name "airflow-db" }}
-  ignoreDifferences:
-    - group: postgresql.cnpg.io
-      kind: Cluster
-      name: airflow-db
-      namespace: airflow
-      jsonPointers:
-        - /spec/affinity
-        - /spec/backup/target
-        - /spec/bootstrap/initdb/encoding
-        - /spec/bootstrap/initdb/localeCType
-        - /spec/bootstrap/initdb/localeCollate
-        - /spec/enablePDB
-        - /spec/enableSuperuserAccess
-        - /spec/failoverDelay
-        - /spec/logLevel
-        - /spec/maxSyncReplicas
-        - /spec/minSyncReplicas
-        - /spec/monitoring/customQueriesConfigMap
-        - /spec/monitoring/disableDefaultQueries
-        - /spec/postgresGID
-        - /spec/postgresUID
-        - /spec/postgresql
-        - /spec/primaryUpdateMethod
-        - /spec/primaryUpdateStrategy
-        - /spec/replicationSlots
-        - /spec/smartShutdownTimeout
-        - /spec/startDelay
-        - /spec/stopDelay
-        - /spec/storage/resizeInUseVolumes
-        - /spec/switchoverDelay
-{{- end }}
   syncPolicy:
     automated:
       prune: true

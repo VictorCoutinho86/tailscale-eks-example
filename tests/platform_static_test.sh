@@ -501,9 +501,8 @@ if ! grep -A2 'has $app.name' gitops/root/templates/applications.yaml | grep -q 
   exit 1
 fi
 
-if ! grep -A4 'eq $app.name "airflow-db"' gitops/root/templates/applications.yaml | grep -q 'ignoreDifferences' || \
-   ! grep -q '/spec/postgresql' gitops/root/templates/applications.yaml; then
-  printf 'expected airflow-db Application to ignore CloudNativePG defaulted fields\n' >&2
+if ! grep -q 'cpu: "1"' gitops/apps/airflow-db/templates/cluster.yaml; then
+  printf 'expected CloudNativePG CPU quantities to render as strings\n' >&2
   exit 1
 fi
 
