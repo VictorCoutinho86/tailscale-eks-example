@@ -9,6 +9,8 @@ airflow:
     enabled: false
   data:
     metadataSecretName: airflow-db-credentials
+    brokerUrlSecretAnnotations:
+      argocd.argoproj.io/hook: Skip
   rbac:
     create: true
   dags:

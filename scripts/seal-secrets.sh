@@ -226,6 +226,16 @@ EOF
 rm -f /tmp/sealed-secrets-cert.pem
 
 echo ""
+echo "==> Migrating the bootstrap Argo CD secret to Sealed Secrets..."
+
+if kubectl get secret argocd-secret -n argocd >/dev/null 2>&1; then
+  ARGOCD_SECRET_HELM_RELEASE=$(kubectl get secret argocd-secret -n argocd -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}')
+  if [[ "${ARGOCD_SECRET_HELM_RELEASE}" == "argocd" ]]; then
+    kubectl delete secret argocd-secret -n argocd --wait=true
+  fi
+fi
+
+echo ""
 echo "==> Applying SealedSecret manifests..."
 kubectl apply \
   -f gitops/apps/airflow/templates/fernet-key-sealed-secret.yaml \
@@ -235,6 +245,25 @@ kubectl apply \
   -f gitops/apps/airflow-db/templates/db-credentials-sealed-secret.yaml \
   -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml \
   -f gitops/apps/kube-prometheus-stack/templates/grafana-admin-credentials-sealed-secret.yaml
+
+wait_for_unsealed() {
+  local namespace="$1" name="$2"
+  if ! kubectl wait --for=condition=Synced=True --timeout=120s "sealedsecret/${name}" -n "${namespace}"; then
+    echo "ERROR: ${namespace}/${name} was not unsealed successfully:" >&2
+    kubectl get "sealedsecret/${name}" -n "${namespace}" -o jsonpath='{range .status.conditions[*]}{.type}={.status}: {.message}{"\n"}{end}' >&2 || true
+    exit 1
+  fi
+}
+
+echo ""
+echo "==> Waiting for Sealed Secrets to decrypt the generated values..."
+wait_for_unsealed airflow airflow-fernet-key
+wait_for_unsealed airflow airflow-jwt-secret
+wait_for_unsealed airflow airflow-api-secret-key
+wait_for_unsealed airflow airflow-admin-credentials
+wait_for_unsealed airflow airflow-db-credentials
+wait_for_unsealed argocd argocd-secret
+wait_for_unsealed monitoring grafana-admin-credentials
 
 echo ""
 echo "==> Done!"

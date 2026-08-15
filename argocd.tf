@@ -20,6 +20,10 @@ resource "helm_release" "argocd" {
       name  = "configs.params.server\\.insecure"
       value = "true"
       type  = "string"
+    },
+    {
+      name  = "configs.secret.createSecret"
+      value = "false"
     }
   ]
 }

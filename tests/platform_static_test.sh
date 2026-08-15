@@ -131,6 +131,11 @@ if grep -q 'configs.secret.argocdServerAdminPassword' argocd.tf || grep -q 'bcry
   exit 1
 fi
 
+if ! grep -q 'name  = "configs.secret.createSecret"' argocd.tf || ! grep -q 'value = "false"' argocd.tf; then
+  printf 'expected Terraform Argo CD bootstrap not to create a competing argocd-secret\n' >&2
+  exit 1
+fi
+
 if grep -q 'output "admin_password"' "$outputs"; then
   printf 'expected admin_password output to be removed\n' >&2
   exit 1
@@ -261,8 +266,9 @@ if grep -q 'listenAddr: "::"' gitops/apps/alloy/values.yaml; then
 fi
 
 if ! grep -q 'kubectl:' gitops/apps/velero/values.yaml || \
-  ! grep -q 'tag: "1.32"' gitops/apps/velero/values.yaml; then
-  printf 'expected Velero upgrade CRDs job to pin a valid bitnami/kubectl image tag\n' >&2
+   ! grep -q 'repository: registry.k8s.io/kubectl' gitops/apps/velero/values.yaml || \
+   ! grep -q 'tag: "v1.36.3"' gitops/apps/velero/values.yaml; then
+  printf 'expected Velero upgrade CRDs job to use a valid Kubernetes kubectl image\n' >&2
   exit 1
 fi
 
@@ -327,6 +333,12 @@ fi
 
 if ! grep -q 'AIRFLOW__WEBSERVER__EXPOSE_CONFIG' gitops/apps/airflow/values.yaml; then
   printf 'expected Airflow webserver configuration exposure to be enabled\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'brokerUrlSecretAnnotations' gitops/apps/airflow/values.yaml || \
+   ! grep -q 'argocd.argoproj.io/hook: Skip' gitops/apps/airflow/values.yaml; then
+  printf 'expected Airflow broker URL Secret Helm hook to be skipped by Argo CD\n' >&2
   exit 1
 fi
 
@@ -474,6 +486,11 @@ if ! grep -B3 'ServerSideApply=true' gitops/root/templates/applications.yaml | g
   exit 1
 fi
 
+if ! grep -A2 'has $app.name' gitops/root/templates/applications.yaml | grep -q 'kube-prometheus-stack'; then
+  printf 'expected kube-prometheus-stack Application to use ServerSideApply=true for large CRDs\n' >&2
+  exit 1
+fi
+
 if ! test -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml; then
   printf 'expected Argo CD admin SealedSecret\n' >&2
   exit 1
@@ -486,6 +503,12 @@ fi
 
 if ! test -f scripts/seal-secrets.sh; then
   printf 'expected seal-secrets.sh helper script\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'meta\\.helm\\.sh/release-name' scripts/seal-secrets.sh || \
+   ! grep -q 'kubectl wait.*condition=Synced' scripts/seal-secrets.sh; then
+  printf 'expected seal-secrets.sh to migrate Helm-owned Argo CD secret and wait for unsealing\n' >&2
   exit 1
 fi
 
