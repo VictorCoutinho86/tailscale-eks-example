@@ -501,6 +501,12 @@ if ! grep -q 'createSecret: false' gitops/apps/argocd/values.yaml; then
   exit 1
 fi
 
+if ! grep -q 'redisSecretInit:' gitops/apps/argocd/values.yaml || \
+   ! grep -A1 'redisSecretInit:' gitops/apps/argocd/values.yaml | grep -q 'enabled: false'; then
+  printf 'expected Argo CD GitOps chart not to wait on the bootstrap Redis secret hook\n' >&2
+  exit 1
+fi
+
 if ! test -f scripts/seal-secrets.sh; then
   printf 'expected seal-secrets.sh helper script\n' >&2
   exit 1
