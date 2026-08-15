@@ -50,6 +50,12 @@ spec:
           value: {{ .Values.kubecostAthenaWorkgroup | quote }}
         - name: global.cnpgBackupBucket
           value: {{ .Values.cnpgBackupBucket | quote }}
+      values: |
+        global:
+          privateSubnetCidrs:
+{{ toYaml .Values.privateSubnetCidrs | indent 12 }}
+          privateSubnetIPv6Cidrs:
+{{ toYaml .Values.privateSubnetIPv6Cidrs | indent 12 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

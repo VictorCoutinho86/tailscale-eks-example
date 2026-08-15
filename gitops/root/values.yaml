@@ -15,3 +15,5 @@ global:
   kubecostAthenaTable: cur_example
   kubecostAthenaQueryResultsBucket: aws-athena-query-results-example
   kubecostAthenaWorkgroup: primary
+  privateSubnetCidrs: []
+  privateSubnetIPv6Cidrs: []

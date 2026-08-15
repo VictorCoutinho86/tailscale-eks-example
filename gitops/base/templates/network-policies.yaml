@@ -60,3 +60,32 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: monitoring
+{{- if or (gt (len .Values.global.privateSubnetCidrs) 0) (gt (len .Values.global.privateSubnetIPv6Cidrs) 0) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+{{- range .Values.global.privateSubnetCidrs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+{{- end }}
+{{- range .Values.global.privateSubnetIPv6Cidrs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+{{- end }}
+      ports:
+        - protocol: TCP
+          port: 8080
+{{- end }}

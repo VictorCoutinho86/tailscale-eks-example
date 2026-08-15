@@ -193,6 +193,35 @@ for ingress_file in \
   fi
 done
 
+if ! grep -q 'alb.ingress.kubernetes.io/backend-protocol: HTTP' gitops/base/templates/ingresses.yaml; then
+  printf 'expected ALB to use HTTP when TLS is terminated before argocd-server\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'name: allow-alb-argocd-server' gitops/base/templates/network-policies.yaml || \
+   ! grep -q 'app.kubernetes.io/name: argocd-server' gitops/base/templates/network-policies.yaml || \
+   ! grep -q 'ipBlock:' gitops/base/templates/network-policies.yaml; then
+  printf 'expected ALB IPv4/IPv6 subnet access to argocd-server in NetworkPolicy\n' >&2
+  exit 1
+fi
+
+for cidr_value in privateSubnetCidrs privateSubnetIPv6Cidrs; do
+  if ! grep -q "$cidr_value" argocd.tf charts/argocd-root-application/templates/application.yaml; then
+    printf 'expected %s to be passed from Terraform to the root Application\n' "$cidr_value" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'privateSubnetCidrs.*module.vpc.private_subnets_cidr_blocks' argocd.tf; then
+  printf 'expected ALB NetworkPolicy IPv4 CIDRs to use VPC subnet CIDR outputs\n' >&2
+  exit 1
+fi
+
+if ! grep -q 'toYaml \$.Values.global' gitops/root/templates/applications.yaml; then
+  printf 'expected root Application values to forward global NetworkPolicy CIDRs\n' >&2
+  exit 1
+fi
+
 if ! grep -q '\[::\]:4317' gitops/apps/otel-collector/values.yaml || ! grep -q '\[::\]:4318' gitops/apps/otel-collector/values.yaml; then
   printf 'expected OpenTelemetry Collector OTLP receivers to bind on IPv6-compatible addresses\n' >&2
   exit 1
