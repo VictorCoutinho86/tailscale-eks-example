@@ -56,6 +56,8 @@ resource "helm_release" "argocd_root_application" {
     kubecostAthenaQueryResultsBucket = var.kubecost_athena_query_results_bucket
     kubecostAthenaWorkgroup          = var.kubecost_athena_workgroup
     cnpgBackupBucket                 = aws_s3_bucket.cnpg_backups.bucket
+    veleroBucket                     = aws_s3_bucket.velero.bucket
+    lokiBucket                       = aws_s3_bucket.loki.bucket
     privateSubnetCidrs               = module.vpc.private_subnets_cidr_blocks
     privateSubnetIPv6Cidrs           = module.vpc.private_subnets_ipv6_cidr_blocks
   })]

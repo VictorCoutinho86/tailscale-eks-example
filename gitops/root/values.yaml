@@ -15,5 +15,7 @@ global:
   kubecostAthenaTable: cur_example
   kubecostAthenaQueryResultsBucket: aws-athena-query-results-example
   kubecostAthenaWorkgroup: primary
+  veleroBucket: tailscale-eks-example-velero-CHANGEME
+  lokiBucket: tailscale-eks-example-loki-CHANGEME
   privateSubnetCidrs: []
   privateSubnetIPv6Cidrs: []

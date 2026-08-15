@@ -232,6 +232,14 @@ if ! grep -q 'toYaml \$.Values.global' gitops/root/templates/applications.yaml; 
   exit 1
 fi
 
+if ! grep -q 'veleroBucket.*aws_s3_bucket.velero.bucket' argocd.tf || \
+   ! grep -q 'lokiBucket.*aws_s3_bucket.loki.bucket' argocd.tf || \
+   ! grep -q 'global.veleroBucket' gitops/root/templates/applications.yaml || \
+   ! grep -q 'global.lokiBucket' gitops/root/templates/applications.yaml; then
+  printf 'expected Velero and Loki S3 buckets to be passed from Terraform to GitOps\n' >&2
+  exit 1
+fi
+
 if ! grep -q '\[::\]:4317' gitops/apps/otel-collector/values.yaml || ! grep -q '\[::\]:4318' gitops/apps/otel-collector/values.yaml; then
   printf 'expected OpenTelemetry Collector OTLP receivers to bind on IPv6-compatible addresses\n' >&2
   exit 1
@@ -331,7 +339,9 @@ if grep -q 'adminPassword:' charts/argocd-root-application/templates/application
 fi
 
 if ! grep -Fq 'name: global.clusterName' charts/argocd-root-application/templates/application.yaml || \
-  ! grep -Fq 'name: global.airflowLogsBucket' charts/argocd-root-application/templates/application.yaml; then
+   ! grep -Fq 'name: global.airflowLogsBucket' charts/argocd-root-application/templates/application.yaml || \
+   ! grep -Fq 'name: global.veleroBucket' charts/argocd-root-application/templates/application.yaml || \
+   ! grep -Fq 'name: global.lokiBucket' charts/argocd-root-application/templates/application.yaml; then
   printf 'expected non-secret global Helm parameters to remain in the root Application\n' >&2
   exit 1
 fi

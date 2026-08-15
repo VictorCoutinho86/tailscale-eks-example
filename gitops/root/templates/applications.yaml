@@ -64,6 +64,36 @@ spec:
             - {{ $.Values.global.domain | quote }}
           extraArgs:
             aws-zone-type: public
+{{ else if eq $app.name "velero" }}
+        velero:
+          configuration:
+            backupStorageLocation:
+              - name: default
+                provider: aws
+                bucket: {{ $.Values.global.veleroBucket | quote }}
+                config:
+                  region: {{ $.Values.global.awsRegion | quote }}
+            volumeSnapshotLocation:
+              - name: default
+                provider: aws
+                config:
+                  region: {{ $.Values.global.awsRegion | quote }}
+          serviceAccount:
+            server:
+              create: false
+              name: velero-server
+          upgradeCRDs: false
+{{ else if eq $app.name "loki" }}
+        loki:
+          loki:
+            storage:
+              bucketNames:
+                chunks: {{ $.Values.global.lokiBucket | quote }}
+                ruler: {{ $.Values.global.lokiBucket | quote }}
+                admin: {{ $.Values.global.lokiBucket | quote }}
+            serviceAccount:
+              create: false
+              name: loki
 {{ else if eq $app.name "karpenter" }}
         karpenter:
           settings:
