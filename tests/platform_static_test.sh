@@ -210,6 +210,11 @@ if ! grep -q 'name: allow-alb-argocd-server' gitops/base/templates/network-polic
   exit 1
 fi
 
+if ! grep -q 'kubernetes.io/metadata.name: cnpg-system' gitops/base/templates/network-policies.yaml; then
+  printf 'expected CloudNativePG operator access to Airflow database pods\n' >&2
+  exit 1
+fi
+
 for cidr_value in privateSubnetCidrs privateSubnetIPv6Cidrs; do
   if ! grep -q "$cidr_value" argocd.tf charts/argocd-root-application/templates/application.yaml; then
     printf 'expected %s to be passed from Terraform to the root Application\n' "$cidr_value" >&2
