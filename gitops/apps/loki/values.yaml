@@ -50,6 +50,12 @@ loki:
         cpu: 500m
     persistence:
       enabled: false
+    extraVolumeMounts:
+      - name: storage
+        mountPath: /var/loki
+    extraVolumes:
+      - name: storage
+        emptyDir: {}
 
   read:
     replicas: 0

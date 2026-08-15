@@ -271,7 +271,8 @@ if ! grep -q '^  deploymentMode: SingleBinary$' gitops/apps/loki/values.yaml || 
    ! grep -A1 '^  backend:' gitops/apps/loki/values.yaml | grep -q 'replicas: 0' || \
    ! grep -q 'object_store: s3' gitops/apps/loki/values.yaml || \
    ! grep -q 'instance_enable_ipv6: true' gitops/apps/loki/values.yaml || \
-   ! grep -q 'instance_addr: 127.0.0.1' gitops/apps/loki/values.yaml; then
+   ! grep -q 'instance_addr: 127.0.0.1' gitops/apps/loki/values.yaml || \
+   ! grep -q 'mountPath: /var/loki' gitops/apps/loki/values.yaml; then
   printf 'expected Loki SingleBinary mode, S3 schema, and ring configuration\n' >&2
   exit 1
 fi
