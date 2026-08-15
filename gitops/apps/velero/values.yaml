@@ -1,8 +1,6 @@
 velero:
-  kubectl:
-    image:
-      repository: alpine/k8s
-      tag: "1.36.2"
+  upgradeCRDs: false
+
   initContainers:
     - name: velero-plugin-for-aws
       image: velero/velero-plugin-for-aws:v1.12.0
