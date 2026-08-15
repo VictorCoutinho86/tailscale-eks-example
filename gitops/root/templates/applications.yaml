@@ -133,7 +133,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-       {{- if has $app.name (list "spark-operator" "cloudnative-pg" "kube-prometheus-stack") }}
+       {{- if has $app.name (list "spark-operator" "cloudnative-pg" "kube-prometheus-stack" "airflow-db") }}
       - ServerSideApply=true
       {{- end }}
 {{- end }}

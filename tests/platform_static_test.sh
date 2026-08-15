@@ -496,6 +496,11 @@ if ! grep -A2 'has $app.name' gitops/root/templates/applications.yaml | grep -q 
   exit 1
 fi
 
+if ! grep -A2 'has $app.name' gitops/root/templates/applications.yaml | grep -q 'airflow-db'; then
+  printf 'expected airflow-db Application to use ServerSideApply=true for CloudNativePG resources\n' >&2
+  exit 1
+fi
+
 if ! test -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml; then
   printf 'expected Argo CD admin SealedSecret\n' >&2
   exit 1
