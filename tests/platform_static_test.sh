@@ -501,6 +501,12 @@ if ! grep -A2 'has $app.name' gitops/root/templates/applications.yaml | grep -q 
   exit 1
 fi
 
+if ! grep -A4 'eq $app.name "airflow-db"' gitops/root/templates/applications.yaml | grep -q 'ignoreDifferences' || \
+   ! grep -q '/spec/postgresql' gitops/root/templates/applications.yaml; then
+  printf 'expected airflow-db Application to ignore CloudNativePG defaulted fields\n' >&2
+  exit 1
+fi
+
 if ! test -f gitops/apps/argocd/templates/argocd-secret-sealed.yaml; then
   printf 'expected Argo CD admin SealedSecret\n' >&2
   exit 1
