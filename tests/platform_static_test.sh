@@ -271,8 +271,8 @@ if grep -q 'listenAddr: "::"' gitops/apps/alloy/values.yaml; then
 fi
 
 if ! grep -q 'kubectl:' gitops/apps/velero/values.yaml || \
-   ! grep -q 'repository: registry.k8s.io/kubectl' gitops/apps/velero/values.yaml || \
-   ! grep -q 'tag: "v1.36.3"' gitops/apps/velero/values.yaml; then
+   ! grep -q 'repository: alpine/k8s' gitops/apps/velero/values.yaml || \
+   ! grep -q 'tag: "1.36.2"' gitops/apps/velero/values.yaml; then
   printf 'expected Velero upgrade CRDs job to use a valid Kubernetes kubectl image\n' >&2
   exit 1
 fi
