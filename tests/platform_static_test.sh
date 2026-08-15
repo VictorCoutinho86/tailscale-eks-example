@@ -260,8 +260,17 @@ if ! grep -q 'loki.source.kubernetes' gitops/apps/alloy/values.yaml || \
 fi
 
 if ! grep -q 'name: alloy' gitops/apps/alloy/Chart.yaml || \
-  ! grep -q 'repository: https://grafana.github.io/helm-charts' gitops/apps/alloy/Chart.yaml; then
+   ! grep -q 'repository: https://grafana.github.io/helm-charts' gitops/apps/alloy/Chart.yaml; then
   printf 'expected Grafana Alloy chart dependency\n' >&2
+  exit 1
+fi
+
+if ! grep -q '^  deploymentMode: SingleBinary$' gitops/apps/loki/values.yaml || \
+   ! grep -A1 '^  read:' gitops/apps/loki/values.yaml | grep -q 'replicas: 0' || \
+   ! grep -A1 '^  write:' gitops/apps/loki/values.yaml | grep -q 'replicas: 0' || \
+   ! grep -A1 '^  backend:' gitops/apps/loki/values.yaml | grep -q 'replicas: 0' || \
+   ! grep -q 'object_store: s3' gitops/apps/loki/values.yaml; then
+  printf 'expected Loki SingleBinary mode and S3 schema configuration\n' >&2
   exit 1
 fi
 
