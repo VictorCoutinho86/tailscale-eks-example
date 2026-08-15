@@ -5,6 +5,7 @@ loki:
     auth_enabled: false
     commonConfig:
       replication_factor: 1
+      instance_addr: 127.0.0.1
       ring:
         instance_enable_ipv6: true
 
