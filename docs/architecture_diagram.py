@@ -70,31 +70,22 @@ with Diagram(
                 aws_lb = Deploy("AWS LBC")
                 external_dns = Deploy("ExternalDNS")
                 karpenter = Deploy("Karpenter")
-                velero = Deploy("Velero\nbackups")
-                sealed_secrets = Deploy("Sealed Secrets")
-                cnpg = Deploy("CNPG Operator")
-                prometheus = Deploy("Prometheus +\nAlertManager")
 
             with Cluster("Data"):
-                airflow_db = PostgreSQL("Airflow DB\nCNPG PostgreSQL 17\n10 GiB")
+                airflow_db = PostgreSQL("Airflow DB\nRDS PostgreSQL 17\n20 GiB")
 
             with Cluster("Apps (Argo CD)"):
                 argocd_app = Deploy("Argo CD")
                 airflow = Pod("Airflow\nKubernetesExecutor")
                 kubecost = Pod("Kubecost")
                 spark_operator = Deploy("Spark Operator")
-                loki = Pod("Loki\nlog agg")
-                otel = Pod("OTel Collector")
 
             with Cluster("Ingresses"):
                 argocd_ingress = Ingress("argocd.*")
                 airflow_ingress = Ingress("airflow.*")
                 kubecost_ingress = Ingress("kubecost.*")
-                monitoring_ingress = Ingress("monitoring.*")
 
-        s3_velero = S3("Velero\nbackups")
-        s3_loki = S3("Loki\nlogs")
-        s3_cnpg = S3("CNPG\nbackups")
+        s3_airflow = S3("Airflow\nlogs + XCom")
         s3_spark = S3("Spark\nevents")
         s3_alb = S3("ALB\naccess logs")
 
@@ -118,9 +109,7 @@ with Diagram(
     root_terraform >> Edge(label="bootstraps") >> argocd_app
 
     # S3 buckets
-    root_terraform >> s3_velero
-    root_terraform >> s3_loki
-    root_terraform >> s3_cnpg
+    root_terraform >> s3_airflow
     root_terraform >> s3_spark
     root_terraform >> s3_alb
 
@@ -128,15 +117,9 @@ with Diagram(
     argocd >> Edge(label="reconciles via\napp-of-apps") >> aws_lb
     argocd >> Edge(label="reconciles") >> external_dns
     argocd >> Edge(label="reconciles") >> karpenter
-    argocd >> Edge(label="reconciles") >> velero
-    argocd >> Edge(label="reconciles") >> sealed_secrets
-    argocd >> Edge(label="reconciles") >> cnpg
-    argocd >> Edge(label="reconciles") >> prometheus
     argocd >> Edge(label="reconciles") >> airflow
     argocd >> Edge(label="reconciles") >> kubecost
     argocd >> Edge(label="reconciles") >> spark_operator
-    argocd >> Edge(label="reconciles") >> loki
-    argocd >> Edge(label="reconciles") >> otel
 
     # DNS
     external_dns >> Edge(label="upserts DNS/TXT") >> route53
@@ -146,7 +129,6 @@ with Diagram(
     internal_alb >> argocd_ingress >> argocd_app
     internal_alb >> airflow_ingress >> airflow
     internal_alb >> kubecost_ingress >> kubecost
-    internal_alb >> monitoring_ingress >> prometheus
 
     # Node placement
     default_nodes >> aws_lb
@@ -157,11 +139,8 @@ with Diagram(
     karpenter >> Edge(label="provisions") >> spark_nodes
 
     # Data dependencies
-    cnpg >> Edge(label="provisions") >> airflow_db
     airflow >> Edge(label="metadata") >> airflow_db
-    velero >> Edge(label="backups") >> s3_velero
-    loki >> Edge(label="chunks") >> s3_loki
-    otel >> Edge(label="OTLP logs") >> loki
+    airflow >> Edge(label="logs + XCom") >> s3_airflow
     spark_operator >> Edge(label="event logs") >> s3_spark
 
     # VPC endpoint

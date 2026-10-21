@@ -1,6 +1,9 @@
 # Tailscale EKS Platform
 
-Production-grade private Amazon EKS platform accessed through a Tailscale subnet router. The VPC is dual-stack across three AZs, EKS Pods and Services use IPv6, normal IPv6 egress uses an egress-only internet gateway, and IPv4-only egress is translated by the subnet-router layer without AWS NAT Gateway. All AZs send IPv4 NAT and NAT64/DNS64 traffic to the single subnet-router. VPC subnet DNS64 is enabled for workloads, and the Ubuntu 24.04 subnet-router also runs local Unbound as a DNS64 fallback and diagnostic resolver with tayga for NAT64. Infrastructure is created by Terraform. Platform services are reconciled by Argo CD through a GitOps app-of-apps tree. All UIs are exposed through one shared internal dual-stack AWS Application Load Balancer, protected by ACM TLS, with DNS managed by ExternalDNS in Route 53.
+Private Amazon EKS platform across three Availability Zones. The VPC and EKS
+workloads are dual-stack, the EKS API is private, and local access goes through
+the persistent Tailscale subnet-router ASG. Terraform creates AWS infrastructure
+and bootstraps Argo CD; Argo CD reconciles the retained platform services.
 
 ## Architecture
 
@@ -12,44 +15,22 @@ Regenerate the diagram:
 uv run --script docs/architecture_diagram.py
 ```
 
-The diagram shows three traffic planes: tailnet access to private endpoints through subnet-router routes, IPv6 workload egress through the egress-only internet gateway, and IPv4/NAT64 fallback through the Ubuntu subnet-router ASG.
-
 ## Prerequisites
 
-- Terraform `>= 1.10.0` with S3 backend native locking (bucket created manually)
-- AWS credentials (`AWS_PROFILE=victor` or equivalent)
-- A public Route 53 hosted zone for `route53_domain_name`
-- A reusable Tailscale auth key for the subnet router instances
-- Tailscale CLI, AWS CLI, `kubectl`, `kubeseal`, and `htpasswd` on the local machine
-- Helm 3 (for chart vendoring: `helm dependency update`)
+- Terraform `>= 1.11.0`
+- AWS credentials using profile `victor`
+- A public Route 53 hosted zone
+- A Tailscale auth key for the subnet routers
+- AWS CLI, `kubectl`, Python 3 and Helm 3
 
-## Quick Start
+## Quick start
 
-### 1. Create local config
+Create the ignored `terraform.tfvars` with the required domain, Tailscale,
+Kubecost CUR, Airflow log bucket and `airflow_db_password` values. Keep the
+password local; it is passed to RDS through Terraform's write-only
+`password_wo` argument.
 
-```hcl
-# terraform.tfvars (gitignored — do not commit)
-aws_profile         = "victor"
-route53_domain_name = "example.com"
-tailscale_subnet_router_auth_key = "tskey-auth-example"
-
-kubecost_athena_database             = "cur_database"
-kubecost_athena_table                = "cur_table"
-kubecost_athena_query_results_bucket = "athena-query-results-bucket"
-kubecost_cur_source_bucket           = "cur-source-bucket"
-airflow_logs_bucket                  = "airflow-logs-bucket"
-
-# First apply only. Set to true after Tailscale routes are approved.
-enable_argocd_bootstrap = false
-```
-
-### 2. Create S3 backend bucket (once)
-
-```bash
-aws s3api create-bucket --bucket tailscale-eks-example --region us-east-1
-```
-
-### 3. Apply infrastructure without Argo CD bootstrap
+Apply infrastructure in two phases:
 
 ```bash
 export AWS_PROFILE=victor
@@ -58,55 +39,29 @@ terraform validate
 terraform apply
 ```
 
-### 4. Approve Tailscale routes
+Approve the advertised Tailscale routes:
 
 ```bash
 terraform output -raw tailscale_subnet_router_hostname
 terraform output -raw tailscale_subnet_route
 terraform output -raw tailscale_subnet_ipv6_route
-# Approve in Tailscale Admin Console
 ```
 
-The hostname output is the base prefix. Actual router devices append their AZ suffix, for example `tailscale-eks-example-subnet-router-a`.
-
-### 5. Enable Argo CD bootstrap and apply again
-
-After the Tailscale IPv4 and IPv6 routes are approved, set this in `terraform.tfvars`:
-
-```hcl
-enable_argocd_bootstrap = true
-```
-
-Then apply again:
-
-```bash
-terraform apply
-```
-
-### 6. Configure kubeconfig
+Set `enable_argocd_bootstrap = true` in the ignored tfvars file and apply again.
+Then configure access and create the native Airflow Secrets:
 
 ```bash
 aws eks update-kubeconfig \
   --profile victor \
-  --region $(terraform output -raw aws_region) \
-  --name $(terraform output -raw cluster_name)
+  --region "$(terraform output -raw aws_region)" \
+  --name "$(terraform output -raw cluster_name)"
+
+export AIRFLOW_DB_PASSWORD='the same local value used by Terraform'
+bash scripts/create-airflow-secrets.sh
 ```
 
-### 7. Encrypt secrets
-
-Wait for the Sealed Secrets controller to be healthy, then generate and seal platform secrets:
-
-```bash
-bash scripts/seal-secrets.sh
-```
-
-### 8. Vendor charts
-
-```bash
-for app in gitops/apps/*/; do
-  helm dependency update "$app" 2>/dev/null || true
-done
-```
+The script preserves existing generated Airflow credentials and refreshes only
+the database connection Secret so it points to the private RDS endpoint.
 
 ## Platform URLs
 
@@ -114,103 +69,86 @@ done
 https://argocd.<domain>
 https://airflow.<domain>
 https://kubecost.<domain>
-https://monitoring.<domain>       (Grafana)
 ```
 
-## What's Inside
+## Services
 
-### Terraform (Root)
+Argo CD manages exactly these child Applications:
 
-| Resource | File |
-|----------|------|
-| VPC (dual-stack public/private subnets, IPv6 egress-only IGW, DNS64, no NAT Gateway) | `network.tf`, `locals.tf` |
-| EKS cluster (private endpoint, KMS-encrypted secrets) | `eks.tf`, `kms.tf` |
-| Subnet router ASG (1 spot instance, Tailscale + IPv4 NAT + NAT64/DNS64) | `tailscale-bootstrap.tf` |
-| Route 53 + ACM wildcard TLS | `route53-acm.tf` |
-| Karpenter (SQS queue, IAM) | `karpenter.tf` |
-| Pod Identity (EBS CSI, LBC, ExternalDNS, Airflow, Spark, Velero, Loki, CNPG) | `pod-identity.tf`, `velero.tf`, `observability.tf`, `database.tf` |
-| S3 backend (state locking, no DynamoDB) | `backend.tf` |
-| Argo CD bootstrap | `argocd.tf` |
-| S3 buckets (Velero, Loki, ALB logs, Spark events, CNPG backups) | `velero.tf`, `observability.tf`, `database.tf` |
-
-### Argo CD GitOps (app-of-apps)
-
-| Wave | App | Purpose |
-|------|-----|---------|
-| 0 | `base` | Namespaces, StorageClass, RBAC, Ingresses, PDBs, NetworkPolicies, AlertRules |
-| 1 | `aws-load-balancer-controller` | ALB provisioning |
+| Wave | Application | Purpose |
+|---:|---|---|
+| 0 | `base` | Namespaces, RBAC, ingress, PDB and network policy |
+| 1 | `aws-load-balancer-controller` | Internal ALB provisioning |
 | 1 | `external-dns` | Route 53 DNS records |
-| 1 | `sealed-secrets` | Secret encryption (generates own key) |
-| 1 | `cloudnative-pg` | PostgreSQL operator |
-| 1 | `velero` | Cluster backup (S3 + EBS snapshots) |
 | 1 | `karpenter` | Node provisioning |
-| 2 | `argocd` | Argo CD (self-managed) |
-| 2 | `kube-prometheus-stack` | Grafana + Prometheus + AlertManager |
-| 3 | `karpenter-resources` | EC2NodeClass + NodePools |
-| 3 | `airflow-db` | CloudNativePG PostgreSQL cluster |
-| 3 | `loki` | Log aggregation (S3 backend) |
-| 3 | `alloy` | Log collection (Grafana Alloy DaemonSet) |
-| 4 | `airflow` | Workflow orchestrator (KubernetesExecutor) |
+| 2 | `argocd` | Self-managed Argo CD |
+| 3 | `karpenter-resources` | EC2NodeClass and NodePool |
+| 4 | `airflow` | Airflow with KubernetesExecutor |
 | 4 | `spark-operator` | Spark job management |
-| 4 | `kubecost` | Cost analytics |
-| 4 | `otel-collector` | OTLP log collection → Loki |
+| 4 | `kubecost` | CUR cost analytics |
 
-Some app wrapper `values.yaml` files keep `CHANGEME` placeholders as safe chart defaults. The Argo CD root Application and sealed-secret workflow provide live values where wired; verify remaining placeholders before relying on those specific services in a live environment.
+Airflow metadata uses a private single-AZ PostgreSQL 17 RDS instance:
+`db.t4g.micro`, 20 GiB gp3, dual-stack, encrypted, with no automated backup or
+final snapshot. Airflow task logs and XCom objects remain in the
+configured S3 bucket.
 
-### Airflow
+## Terraform resources
 
-- Metadata database: CloudNativePG PostgreSQL 17 (dedicated, 10 GiB, daily backup)
-- Executor: KubernetesExecutor
-- HA: 2 apiServer replicas + 2 scheduler replicas across nodes
-- Metrics: StatsD → Prometheus (ServiceMonitor)
-- Task remote logs: S3
-- Pod/container logs: Grafana Alloy → Loki
-- OTLP application logs: OpenTelemetry Collector → Loki for workloads that emit OTLP logs
+| Resource | Files |
+|---|---|
+| Dual-stack VPC, routes and S3 endpoint | `network.tf`, `locals.tf` |
+| Private EKS cluster and fixed addons for Kubernetes 1.37 | `eks.tf`, `kms.tf` |
+| Tailscale subnet-router ASG and NAT64/DNS64 | `tailscale-bootstrap.tf`, `templates/bootstrap.sh.tftpl` |
+| Private Airflow RDS and security group | `airflow-rds.tf` |
+| Route 53, ACM and internal ALB inputs | `route53-acm.tf`, `argocd.tf` |
+| Karpenter and workload Pod Identity | `karpenter.tf`, `pod-identity.tf` |
+| ALB access logs, Spark events and Airflow logs | `observability.tf`, `locals.tf` |
 
-### Security
+## Secrets and data durability
 
-- All application secrets encrypted with Sealed Secrets
-- No plaintext secrets in Git or Terraform state
-- TLS 1.2 minimum on all ingresses
-- VPC CNI network policies isolating namespaces
-- Bootstrap SG restricted to private subnets only
-- KMS envelope encryption for EKS Kubernetes secrets
-- Private EKS endpoint only (no public access)
-- S3 buckets: SSE, no public access, lifecycle policies
+Airflow application credentials are native Kubernetes Secrets created locally by
+`scripts/create-airflow-secrets.sh`. No secret values are committed to Git.
 
-### Backup
-
-- Velero: daily full cluster backup (30d) + hourly critical (7d)
-- Airflow DB: daily Barman backup to S3 (7d retention, PITR)
-- ALB access logs: S3 (90d retention)
-
-### Monitoring
-
-- Grafana at `monitoring.<domain>`
-- Prometheus: 50 GB / 15 days retention
-- Loki: log aggregation from all pods
-- Alert rules: node health, pod crashes, PVC usage, Karpenter capacity, Velero failures
+The RDS configuration intentionally has no database backup, final snapshot,
+Multi-AZ, read replica, Performance Insights or Enhanced Monitoring. Destroying
+the database is therefore irreversible unless data is exported separately.
+There is no cluster backup, metrics stack or log aggregation service; retain
+important application data in the configured S3 destinations.
 
 ## Validation
 
 ```bash
-# Static
+bash tests/versions_static_test.sh
+bash tests/eks_addons_static_test.sh
 bash tests/platform_static_test.sh
 bash tests/bootstrap_static_test.sh
+bash tests/private_network_static_test.sh
+bash tests/karpenter_static_test.sh
+bash tests/kubecost_cur_static_test.sh
+bash tests/rds_static_test.sh
+bash tests/airflow_secrets_static_test.sh
 terraform fmt -check -recursive *.tf
 terraform validate
+helm template platform-root gitops/root \
+  --set global.repoURL=https://example.invalid/repo.git \
+  --set global.targetRevision=master
+```
 
-# Runtime
+Runtime checks:
+
+```bash
 kubectl -n argocd get applications
 kubectl get nodes
 kubectl get ingress -A
 kubectl -n airflow get pods
-kubectl -n cnpg-system get clusters
+kubectl -n airflow get secret airflow-db-credentials
 ```
 
 ## Destroy
 
 ```bash
 terraform destroy
-# Note: S3 buckets with versioning must be emptied first
 ```
+
+The database has no final snapshot and the configured S3 buckets may need to be
+emptied before destruction.

@@ -173,8 +173,8 @@ require_block_match \
 
 require_match 'kubecost_athena_policy_statements' locals.tf
 
-athena_block='sid = "KubecostAthenaAccess"'
-require_block_match "$athena_block" 'resources = ["*"]' locals.tf true
+athena_block='sid = "KubecostAthenaWorkgroupAccess"'
+require_block_match "$athena_block" 'workgroup/${var.kubecost_athena_workgroup}' locals.tf
 for action in \
   'athena:BatchGetQueryExecution' \
   'athena:GetQueryExecution' \
@@ -183,20 +183,24 @@ for action in \
   'athena:StartQueryExecution' \
   'athena:StopQueryExecution' \
   'athena:GetWorkGroup' \
-  'athena:ListWorkGroups'; do
+  'athena:GetWorkGroup'; do
   require_block_match "$athena_block" "$action" locals.tf
 done
 
-glue_block='sid = "KubecostGlueRead"'
+require_block_match 'KubecostAthenaListWorkgroups' 'athena:ListWorkGroups' locals.tf
+require_block_match 'KubecostAthenaListWorkgroups' 'resources = ["*"]' locals.tf true
+
+glue_block='KubecostGlueTableRead'
 for action in \
-  'glue:GetDatabase' \
   'glue:GetTable' \
   'glue:GetPartition' \
-  'glue:GetUserDefinedFunction' \
   'glue:BatchGetPartition'; do
   require_block_match "$glue_block" "$action" locals.tf
 done
 require_block_match "$glue_block" ':catalog' locals.tf
+
+require_block_match 'KubecostGlueDatabaseRead' 'glue:GetDatabase' locals.tf
+require_block_match 'KubecostGlueFunctionRead' 'glue:GetUserDefinedFunction' locals.tf
 
 cur_bucket_block='sid       = "KubecostCurBucketRead"'
 for action in s3:GetBucketLocation s3:ListBucket; do
@@ -237,7 +241,11 @@ for resource in \
   'database/${var.kubecost_athena_database}' \
   'table/${var.kubecost_athena_database}/${var.kubecost_athena_table}' \
   'userDefinedFunction/${var.kubecost_athena_database}/*'; do
-  require_block_match 'sid = "KubecostGlueRead"' "$resource" locals.tf
+  case "$resource" in
+    database/*) require_block_match 'KubecostGlueDatabaseRead' "$resource" locals.tf ;;
+    table/*) require_block_match 'KubecostGlueTableRead' "$resource" locals.tf ;;
+    userDefinedFunction/*) require_block_match 'KubecostGlueFunctionRead' "$resource" locals.tf ;;
+  esac
 done
 if grep -Fq 'table/${var.kubecost_athena_database}/*' locals.tf; then
   printf 'did not expect wildcard Glue table resource in locals.tf\n' >&2
@@ -261,7 +269,7 @@ require_match 'module "kubecost_pod_identity"' pod-identity.tf
 pod_identity_block='module "kubecost_pod_identity" {'
 for setting in \
   'attach_custom_policy = true' \
-  'namespace = "kubecost"' \
+  'namespace       = "kubecost"' \
   'service_account = "kubecost-aws"'; do
   require_block_match "$pod_identity_block" "$setting" pod-identity.tf
 done
@@ -283,7 +291,7 @@ for parameter in \
   kubecostAthenaTable \
   kubecostAthenaQueryResultsBucket \
   kubecostAthenaWorkgroup; do
-  require_adjacent "$parameter" "$parameter" charts/argocd-root-application/templates/application.yaml
+  require_adjacent "global.$parameter" "$parameter" charts/argocd-root-application/templates/application.yaml
 done
 
 kubecost_branch='{{ else if eq $app.name "kubecost" }}'

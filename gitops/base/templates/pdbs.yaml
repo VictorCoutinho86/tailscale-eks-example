@@ -79,19 +79,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: sealed-secrets
-  namespace: sealed-secrets
-  labels:
-    app.kubernetes.io/part-of: platform
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: sealed-secrets
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
   name: airflow-api-server
   namespace: airflow
   labels:

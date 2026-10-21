@@ -4,7 +4,7 @@ resource "helm_release" "argocd" {
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "8.5.7"
+  version          = "10.10.5"
   namespace        = "argocd"
   create_namespace = true
 
@@ -23,7 +23,7 @@ resource "helm_release" "argocd" {
     },
     {
       name  = "configs.secret.createSecret"
-      value = "false"
+      value = "true"
     }
   ]
 }
@@ -55,9 +55,6 @@ resource "helm_release" "argocd_root_application" {
     kubecostAthenaTable              = var.kubecost_athena_table
     kubecostAthenaQueryResultsBucket = var.kubecost_athena_query_results_bucket
     kubecostAthenaWorkgroup          = var.kubecost_athena_workgroup
-    cnpgBackupBucket                 = aws_s3_bucket.cnpg_backups.bucket
-    veleroBucket                     = aws_s3_bucket.velero.bucket
-    lokiBucket                       = aws_s3_bucket.loki.bucket
     privateSubnetCidrs               = module.vpc.private_subnets_cidr_blocks
     privateSubnetIPv6Cidrs           = module.vpc.private_subnets_ipv6_cidr_blocks
   })]

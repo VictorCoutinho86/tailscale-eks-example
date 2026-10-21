@@ -48,12 +48,6 @@ spec:
           value: {{ .Values.kubecostAthenaQueryResultsBucket | quote }}
         - name: global.kubecostAthenaWorkgroup
           value: {{ .Values.kubecostAthenaWorkgroup | quote }}
-        - name: global.cnpgBackupBucket
-          value: {{ .Values.cnpgBackupBucket | quote }}
-        - name: global.veleroBucket
-          value: {{ .Values.veleroBucket | quote }}
-        - name: global.lokiBucket
-          value: {{ .Values.lokiBucket | quote }}
       values: |
         global:
           privateSubnetCidrs:

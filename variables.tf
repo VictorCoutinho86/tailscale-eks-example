@@ -33,14 +33,25 @@ variable "route53_domain_name" {
   type        = string
 }
 
+variable "airflow_db_password" {
+  description = "Write-only master password for the private Airflow PostgreSQL RDS instance."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trimspace(var.airflow_db_password)) > 0
+    error_message = "airflow_db_password must not be empty."
+  }
+}
+
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster."
   type        = string
-  default     = "1.36"
+  default     = "1.37"
 
   validation {
     condition     = can(regex("^\\d+\\.\\d+$", var.cluster_version))
-    error_message = "cluster_version must use minor version format like 1.36."
+    error_message = "cluster_version must use minor version format like 1.37."
   }
 }
 

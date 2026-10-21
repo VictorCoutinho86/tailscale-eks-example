@@ -30,7 +30,7 @@ module "eks" {
 
   addons = {
     vpc-cni = {
-      addon_version  = "v1.22.4-eksbuild.3"
+      addon_version  = "v1.23.2-eksbuild.3"
       before_compute = true
       configuration_values = jsonencode({
         enableNetworkPolicy = "true"
@@ -38,20 +38,20 @@ module "eks" {
     }
 
     eks-pod-identity-agent = {
-      most_recent    = true
+      addon_version  = "v1.4.0-eksbuild.4"
       before_compute = true
     }
 
     coredns = {
-      most_recent = true
+      addon_version = "v1.14.7-eksbuild.11"
     }
 
     kube-proxy = {
-      most_recent = true
+      addon_version = "v1.37.0-eksbuild.22"
     }
 
     aws-ebs-csi-driver = {
-      most_recent = true
+      addon_version = "v1.67.1-eksbuild.1"
       pod_identity_association = [{
         role_arn        = module.aws_ebs_csi_pod_identity.iam_role_arn
         service_account = "ebs-csi-controller-sa"
