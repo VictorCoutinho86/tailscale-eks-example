@@ -32,6 +32,10 @@ password local; it is passed to RDS through Terraform's write-only
 
 Apply infrastructure in two phases:
 
+For a new cluster, keep `enable_argocd_bootstrap = false` during the first
+apply so Terraform can create the EKS control plane before using the Kubernetes
+provider.
+
 ```bash
 export AWS_PROFILE=victor
 terraform init -migrate-state
@@ -48,20 +52,20 @@ terraform output -raw tailscale_subnet_ipv6_route
 ```
 
 Set `enable_argocd_bootstrap = true` in the ignored tfvars file and apply again.
-Then configure access and create the native Airflow Secrets:
+Terraform then creates the Airflow namespace and Secrets before the Argo CD root
+Application is installed. Read the generated administrator passwords with:
 
 ```bash
-aws eks update-kubeconfig \
-  --profile victor \
-  --region "$(terraform output -raw aws_region)" \
-  --name "$(terraform output -raw cluster_name)"
-
-export AIRFLOW_DB_PASSWORD='the same local value used by Terraform'
-bash scripts/create-airflow-secrets.sh
+terraform output -raw airflow_admin_password
+terraform output -raw argocd_admin_password
 ```
 
-The script preserves existing generated Airflow credentials and refreshes only
-the database connection Secret so it points to the private RDS endpoint.
+On an existing cluster, import the namespace once before that apply if it is
+already present:
+
+```bash
+terraform import 'kubernetes_namespace_v1.airflow[0]' airflow
+```
 
 ## Platform URLs
 
@@ -100,14 +104,16 @@ configured S3 bucket.
 | Private EKS cluster and fixed addons for Kubernetes 1.37 | `eks.tf`, `kms.tf` |
 | Tailscale subnet-router ASG and NAT64/DNS64 | `tailscale-bootstrap.tf`, `templates/bootstrap.sh.tftpl` |
 | Private Airflow RDS and security group | `airflow-rds.tf` |
+| Airflow and generated platform credentials | `airflow-secrets.tf`, `outputs.tf` |
 | Route 53, ACM and internal ALB inputs | `route53-acm.tf`, `argocd.tf` |
 | Karpenter and workload Pod Identity | `karpenter.tf`, `pod-identity.tf` |
 | ALB access logs, Spark events and Airflow logs | `observability.tf`, `locals.tf` |
 
 ## Secrets and data durability
 
-Airflow application credentials are native Kubernetes Secrets created locally by
-`scripts/create-airflow-secrets.sh`. No secret values are committed to Git.
+Airflow application credentials are native Kubernetes Secrets created by
+Terraform from `random_id`/`random_password` resources. No secret values are
+committed to Git; generated values are stored in Terraform state.
 
 The RDS configuration intentionally has no database backup, final snapshot,
 Multi-AZ, read replica, Performance Insights or Enhanced Monitoring. Destroying

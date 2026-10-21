@@ -32,7 +32,7 @@ and the Argo CD app-of-apps delivery path.
   `base`, `argocd`, `aws-load-balancer-controller`, `external-dns`, `karpenter`,
   `karpenter-resources`, `airflow`, `spark-operator` and `kubecost`.
 - All Airflow application credentials are native Kubernetes Secrets created by
-  `scripts/create-airflow-secrets.sh`.
+  Terraform from `random_id`/`random_password` resources.
 - The RDS password uses Terraform `password_wo` and `password_wo_version`; do
   not use a state-backed master password argument.
 - Do not add paid backup, monitoring, log aggregation, Secrets Manager, ESO or
@@ -96,11 +96,10 @@ terraform apply
 ```
 
 Approve the IPv4 and IPv6 routes shown by Terraform outputs, then set
-`enable_argocd_bootstrap = true` and apply again. Configure kubeconfig and run:
+`enable_argocd_bootstrap = true` and apply again. Terraform creates the Airflow
+namespace and Secrets before the Argo CD root Application, then validate:
 
 ```bash
-export AIRFLOW_DB_PASSWORD='the same local value used by Terraform'
-bash scripts/create-airflow-secrets.sh
 kubectl -n argocd get applications
 kubectl -n airflow get pods
 ```
@@ -116,7 +115,7 @@ kubectl -n airflow get pods
 - `gitops/root/`: Argo CD app-of-apps chart.
 - `gitops/base/`: shared Kubernetes resources.
 - `gitops/apps/`: retained service chart wrappers.
-- `scripts/create-airflow-secrets.sh`: native Airflow Secret setup.
+- `airflow-secrets.tf`: generated Airflow Secrets and password outputs.
 - `docs/architecture_diagram.py`: diagram source.
 
 ## Validation commands

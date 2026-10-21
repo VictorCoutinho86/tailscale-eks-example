@@ -39,9 +39,12 @@ assert_contains gitops/base/templates/network-policies.yaml 'name: allow-alb-arg
 assert_contains gitops/apps/airflow/values.yaml 'metadataSecretName: airflow-db-credentials'
 assert_contains gitops/apps/airflow/values.yaml 'useHelmHooks: false'
 assert_contains gitops/apps/spark-operator/values.yaml 'enable: true'
+assert_contains gitops/root/templates/applications.yaml 'ServerSideApply=true'
+assert_contains gitops/apps/kubecost/values.yaml '  mcp:'
+assert_contains gitops/apps/kubecost/values.yaml '    enabled: false'
 assert_contains README.md 'Terraform `>= 1.11.0`'
 assert_contains README.md 'airflow_db_password'
-assert_contains README.md 'scripts/create-airflow-secrets.sh'
+assert_contains README.md 'airflow-secrets.tf'
 assert_contains README.md 'no automated backup'
 assert_contains AGENTS.md 'Kubernetes version `1.37`'
 assert_contains AGENTS.md 'password_wo'
@@ -86,8 +89,6 @@ assert_absent gitops/base/templates/namespaces.yaml 'monitoring'
 assert_absent gitops/base/templates/network-policies.yaml 'cnpg-system'
 assert_absent gitops/base/templates/network-policies.yaml 'monitoring'
 assert_absent gitops/base/templates/pdbs.yaml 'sealed-secrets'
-assert_absent gitops/root/templates/applications.yaml 'ServerSideApply=true'
-
 if test -e gitops/apps/argocd/templates/argocd-secret-sealed.yaml; then
   printf 'expected Argo CD sealed secret template to be removed\n' >&2
   exit 1

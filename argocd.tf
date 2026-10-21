@@ -59,5 +59,12 @@ resource "helm_release" "argocd_root_application" {
     privateSubnetIPv6Cidrs           = module.vpc.private_subnets_ipv6_cidr_blocks
   })]
 
-  depends_on = [helm_release.argocd]
+  depends_on = [
+    helm_release.argocd,
+    kubernetes_secret_v1.airflow_fernet,
+    kubernetes_secret_v1.airflow_jwt,
+    kubernetes_secret_v1.airflow_api,
+    kubernetes_secret_v1.airflow_admin,
+    kubernetes_secret_v1.airflow_db,
+  ]
 }

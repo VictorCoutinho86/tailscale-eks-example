@@ -125,4 +125,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+{{- if eq $app.name "spark-operator" }}
+      - ServerSideApply=true
+{{- end }}
 {{- end }}

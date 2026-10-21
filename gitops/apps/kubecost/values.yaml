@@ -1,4 +1,6 @@
 kubecost:
+  mcp:
+    enabled: false
   networkCosts:
     enabled: true
   serviceAccount:
