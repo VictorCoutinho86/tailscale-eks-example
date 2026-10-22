@@ -4,7 +4,7 @@ external-dns:
   serviceAccount:
     create: false
     name: external-dns
-  policy: upsert-only
+  policy: sync
   registry: txt
   extraArgs:
     aws-zone-type: public
