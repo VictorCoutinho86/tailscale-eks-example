@@ -1,6 +1,6 @@
 resource "aws_kms_key" "eks_secrets" {
   description             = "KMS key for EKS envelope encryption of Kubernetes secrets"
-  deletion_window_in_days = 30
+  deletion_window_in_days = 7
   enable_key_rotation     = true
 
   policy = jsonencode({

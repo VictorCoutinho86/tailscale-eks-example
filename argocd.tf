@@ -26,6 +26,14 @@ resource "helm_release" "argocd" {
       value = "true"
     }
   ]
+
+  depends_on = [
+    kubernetes_secret_v1.airflow_fernet,
+    kubernetes_secret_v1.airflow_jwt,
+    kubernetes_secret_v1.airflow_api,
+    kubernetes_secret_v1.airflow_admin,
+    kubernetes_secret_v1.airflow_db,
+  ]
 }
 
 resource "helm_release" "argocd_root_application" {
@@ -61,10 +69,5 @@ resource "helm_release" "argocd_root_application" {
 
   depends_on = [
     helm_release.argocd,
-    kubernetes_secret_v1.airflow_fernet,
-    kubernetes_secret_v1.airflow_jwt,
-    kubernetes_secret_v1.airflow_api,
-    kubernetes_secret_v1.airflow_admin,
-    kubernetes_secret_v1.airflow_db,
   ]
 }

@@ -20,7 +20,6 @@ resource "random_password" "airflow_admin" {
 resource "kubernetes_namespace_v1" "airflow" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name = "airflow"
@@ -34,7 +33,6 @@ resource "kubernetes_namespace_v1" "airflow" {
 resource "kubernetes_secret_v1" "airflow_fernet" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name      = "airflow-fernet-key"
@@ -49,7 +47,6 @@ resource "kubernetes_secret_v1" "airflow_fernet" {
 resource "kubernetes_secret_v1" "airflow_jwt" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name      = "airflow-jwt-secret"
@@ -64,7 +61,6 @@ resource "kubernetes_secret_v1" "airflow_jwt" {
 resource "kubernetes_secret_v1" "airflow_api" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name      = "airflow-api-secret-key"
@@ -79,7 +75,6 @@ resource "kubernetes_secret_v1" "airflow_api" {
 resource "kubernetes_secret_v1" "airflow_admin" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name      = "airflow-admin-credentials"
@@ -94,7 +89,6 @@ resource "kubernetes_secret_v1" "airflow_admin" {
 resource "kubernetes_secret_v1" "airflow_db" {
   count = var.enable_argocd_bootstrap ? 1 : 0
 
-  depends_on = [helm_release.argocd]
 
   metadata {
     name      = "airflow-db-credentials"
@@ -116,5 +110,4 @@ data "kubernetes_secret_v1" "argocd_initial_admin" {
     namespace = "argocd"
   }
 
-  depends_on = [helm_release.argocd]
 }
