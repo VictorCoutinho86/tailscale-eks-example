@@ -90,6 +90,8 @@ airflow:
   extraEnv: |
     - name: AIRFLOW_CONN_GIT_DAGS
       value: git://https%3A%2F%2Fgithub.com%2FVictorCoutinho86%2Fdags.git
+    - name: AWS_ENDPOINT_URL_S3
+      value: "https://s3.dualstack.us-east-1.amazonaws.com"
     - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
       value: "non-sensitive-only"
     - name: _PIP_ADDITIONAL_REQUIREMENTS
