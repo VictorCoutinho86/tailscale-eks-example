@@ -20,6 +20,37 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: airflow
+{{- if or (gt (len .Values.global.privateSubnetCidrs) 0) (gt (len .Values.global.privateSubnetIPv6Cidrs) 0) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-airflow-api-server
+  namespace: airflow
+  labels:
+    app.kubernetes.io/part-of: platform
+spec:
+  podSelector:
+    matchLabels:
+      component: api-server
+      release: airflow
+      tier: airflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+{{- range .Values.global.privateSubnetCidrs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+{{- end }}
+{{- range .Values.global.privateSubnetIPv6Cidrs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+{{- end }}
+      ports:
+        - protocol: TCP
+          port: 8080
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

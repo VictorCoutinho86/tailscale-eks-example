@@ -19,7 +19,6 @@ for expected in \
   'resource "random_password" "airflow_api"' \
   'resource "random_password" "airflow_admin"' \
   'resource "kubernetes_namespace_v1" "airflow"' \
-  'depends_on = [helm_release.argocd]' \
   'resource "kubernetes_secret_v1" "airflow_fernet"' \
   'resource "kubernetes_secret_v1" "airflow_jwt"' \
   'resource "kubernetes_secret_v1" "airflow_api"' \
@@ -38,10 +37,15 @@ for expected in \
   fi
 done
 
-if [[ "$(grep -Fc 'depends_on = [helm_release.argocd]' airflow-secrets.tf)" -lt 6 ]]; then
-  printf 'expected namespace and five Airflow Secrets to depend on the Argo CD Helm release\n' >&2
-  exit 1
-fi
+assert_contains argocd.tf 'depends_on = ['
+for dependency in \
+  'kubernetes_secret_v1.airflow_fernet' \
+  'kubernetes_secret_v1.airflow_jwt' \
+  'kubernetes_secret_v1.airflow_api' \
+  'kubernetes_secret_v1.airflow_admin' \
+  'kubernetes_secret_v1.airflow_db'; do
+  assert_contains argocd.tf "$dependency"
+done
 
 if test -e scripts/create-airflow-secrets.sh; then
   printf 'expected the local Airflow secret script to be removed\n' >&2
