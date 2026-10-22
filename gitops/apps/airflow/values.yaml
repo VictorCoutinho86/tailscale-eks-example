@@ -96,10 +96,6 @@ airflow:
       value: "apache-airflow-providers-amazon[s3fs]"
   statsd:
     enabled: false
-  config:
-    secrets:
-      backend: airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-      backend_kwargs: '{"connections_label": "airflow.apache.org/connection-id", "variables_label": "airflow.apache.org/variable-key"}'
   workers:
     resources:
       limits:
