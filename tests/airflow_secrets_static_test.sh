@@ -47,6 +47,8 @@ for dependency in \
   assert_contains argocd.tf "$dependency"
 done
 
+assert_contains airflow-secrets.tf 'depends_on = [helm_release.argocd]'
+
 if test -e scripts/create-airflow-secrets.sh; then
   printf 'expected the local Airflow secret script to be removed\n' >&2
   exit 1
